@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizLearn - Your Learning Path</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <main class="container">
+        <!-- Home View -->
+        <div id="home-view">
+            <header class="hero">
+                <div class="logo-container">
+                    <i data-lucide="book-open" class="logo-icon"></i>
+                </div>
+                <h1>QuizLearn</h1>
+                <p class="subtitle">Choose your learning path and start exploring!</p>
+            </header>
+
+            <section class="code-entry">
+                <div class="code-input-wrapper">
+                    <button class="code-btn" onclick="showView('student-view')">
+                        <i data-lucide="key-round"></i>
+                        <span>Have a code? Enter it here!</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="cards-grid">
+                <div class="card practice" onclick="showView('practice-view')">
+                    <div class="card-icon-wrapper">
+                        <i data-lucide="book-open"></i>
+                    </div>
+                    <h3>Practice Mode</h3>
+                    <p>Test your knowledge with fun flashcards</p>
+                    <button class="start-btn">Start Learning &rarr;</button>
+                </div>
+
+                <div class="card student" onclick="showView('student-view')">
+                    <div class="card-icon-wrapper">
+                        <i data-lucide="graduation-cap"></i>
+                    </div>
+                    <h3>Student Deck</h3>
+                    <p>Learning materials for students</p>
+                    <button class="start-btn">Start Learning &rarr;</button>
+                </div>
+
+                <div class="card teacher" onclick="showView('teacher-dashboard')">
+                    <div class="card-icon-wrapper">
+                        <i data-lucide="users"></i>
+                    </div>
+                    <h3>Teacher Dashboard</h3>
+                    <p>Create quizzes and generate student codes</p>
+                    <button class="start-btn">Start Learning &rarr;</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Teacher Dashboard View -->
+        <div id="teacher-dashboard" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Teacher Dashboard</h1>
+                <p class="subtitle">Create quizzes and share codes with your students</p>
+            </header>
+
+            <button class="create-quiz-btn" onclick="showView('create-quiz-view')">
+                <i data-lucide="plus"></i> Create New Quiz
+            </button>
+
+            <div id="quiz-list-container" class="empty-state">
+                <div class="empty-icon">
+                    <img src="https://cdni.iconscout.com/illustration/premium/thumb/no-data-found-8867393-7276247.png"
+                        alt="No data" style="width: 200px; filter: hue-rotate(280deg);">
+                </div>
+                <h2>No quizzes yet</h2>
+                <p>Create your first quiz to get started!</p>
+            </div>
+
+            <div id="active-quizzes" class="quiz-grid hidden">
+                <!-- Quizzes will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Create Quiz View -->
+        <div id="create-quiz-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('teacher-dashboard')"><i data-lucide="arrow-left"></i> Back to
+                    Dashboard</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Create New Quiz</h1>
+                <p class="subtitle">Add questions and choose your quiz type</p>
+            </header>
+
+            <div class="quiz-form-card">
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title</label>
+                    <input type="text" id="quiz-title" placeholder="e.g. Science Midterm">
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-type">Select Quiz Type</label>
+                    <select id="quiz-type" onchange="updateFormType()">
+                        <option value="multiple-choice">Multiple Choice</option>
+                        <option value="essay">Essay</option>
+                        <option value="identification">Identification</option>
+                    </select>
+                </div>
+
+                <div id="questions-container">
+                    <!-- Questions will be added here -->
+                </div>
+
+                <button class="add-question-btn" onclick="addQuestion()">
+                    <i data-lucide="plus-circle"></i> Add Question
+                </button>
+
+                <div class="form-actions">
+                    <button class="save-quiz-btn" onclick="saveQuiz()">
+                        <i data-lucide="save"></i> Save & Generate Code
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated Code Modal (Overlay) -->
+        <div id="code-modal" class="modal hidden">
+            <div class="modal-content">
+                <i data-lucide="check-circle" class="success-icon"></i>
+                <h2>Quiz Created Successfully!</h2>
+                <p>Share this code with your students:</p>
+                <div class="generated-code-box">
+                    <span id="generated-code">XXXXXX</span>
+                    <button id="copy-btn" onclick="copyCode()">
+                        <i data-lucide="copy"></i>
+                    </button>
+                </div>
+                <button class="close-modal-btn" onclick="closeModal()">Back to Dashboard</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State Management
+        let quizzes = JSON.parse(localStorage.getItem('quizzes')) || [];
+        let editingIndex = -1;
+
+        function showView(viewId) {
+            document.querySelectorAll('main > div, .view').forEach(div => div.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+
+            // Reset state if heading back to dashboard or home
+            if (viewId === 'teacher-dashboard') {
+                editingIndex = -1;
+                renderQuizzes();
+            }
+            if (viewId === 'create-quiz-view' && editingIndex === -1) {
+                resetQuizForm();
+            }
+
+            lucide.createIcons();
+        }
+
+        function resetQuizForm() {
+            document.getElementById('quiz-title').value = '';
+            document.getElementById('quiz-type').value = 'multiple-choice';
+            document.getElementById('questions-container').innerHTML = '';
+            document.querySelector('.save-quiz-btn').innerHTML = '<i data-lucide="save"></i> Save & Generate Code';
+            addQuestion();
+        }
+
+        // Quiz Logic
+        function updateFormType() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            addQuestion();
+        }
+
+        function addQuestion() {
+            const container = document.getElementById('questions-container');
+            const type = document.getElementById('quiz-type').value;
+            const qCount = container.children.length + 1;
+
+            const qDiv = document.createElement('div');
+            qDiv.className = 'question-block';
+
+            let extraFields = '';
+            if (type === 'multiple-choice') {
+                extraFields = `
+                    <div class="choices-grid">
+                        <input type="text" placeholder="Option A" class="choice-input">
+                        <input type="text" placeholder="Option B" class="choice-input">
+                        <input type="text" placeholder="Option C" class="choice-input">
+                        <input type="text" placeholder="Option D" class="choice-input">
+                    </div>
+                    <input type="text" placeholder="Correct Answer (e.g. Option A)" class="answer-input">
+                `;
+            } else if (type === 'identification') {
+                extraFields = `
+                    <input type="text" placeholder="Correct Answer" class="answer-input">
+                `;
+            } else {
+                extraFields = `
+                    <p class="essay-info">Students will provide a long-form answer.</p>
+                `;
+            }
+
+            qDiv.innerHTML = `
+                <div class="q-header">
+                    <h4>Question ${qCount}</h4>
+                    <button class="remove-q" onclick="this.parentElement.parentElement.remove()"><i data-lucide="trash-2"></i></button>
+                </div>
+                <input type="text" placeholder="Enter your question here" class="question-input">
+                ${extraFields}
+            `;
+            container.appendChild(qDiv);
+            lucide.createIcons();
+        }
+
+        function saveQuiz() {
+            const title = document.getElementById('quiz-title').value;
+            const type = document.getElementById('quiz-type').value;
+            if (!title) return alert('Please enter a quiz title');
+
+            // Collect questions
+            const questionBlocks = document.querySelectorAll('.question-block');
+            const questions = Array.from(questionBlocks).map(block => {
+                const question = block.querySelector('.question-input').value;
+                const answer = block.querySelector('.answer-input')?.value || '';
+                const choices = Array.from(block.querySelectorAll('.choice-input')).map(input => input.value);
+                return { question, answer, choices };
+            });
+
+            if (editingIndex > -1) {
+                // Update existing
+                quizzes[editingIndex].title = title;
+                quizzes[editingIndex].type = type;
+                quizzes[editingIndex].questions = questions;
+            } else {
+                // Create new
+                const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const quiz = {
+                    title,
+                    type,
+                    code,
+                    questions,
+                    date: new Date().toLocaleDateString()
+                };
+                quizzes.push(quiz);
+            }
+
+            localStorage.setItem('quizzes', JSON.stringify(quizzes));
+
+            if (editingIndex > -1) {
+                alert('Quiz updated successfully!');
+                showView('teacher-dashboard');
+            } else {
+                document.getElementById('generated-code').innerText = quizzes[quizzes.length - 1].code;
+                document.getElementById('code-modal').classList.remove('hidden');
+            }
+            editingIndex = -1;
+            lucide.createIcons();
+        }
+
+        function deleteQuiz(index) {
+            if (confirm('Are you sure you want to delete this quiz?')) {
+                quizzes.splice(index, 1);
+                localStorage.setItem('quizzes', JSON.stringify(quizzes));
+                renderQuizzes();
+            }
+        }
+
+        function editQuiz(index) {
+            editingIndex = index;
+            const quiz = quizzes[index];
+
+            showView('create-quiz-view');
+            document.getElementById('quiz-title').value = quiz.title;
+            document.getElementById('quiz-type').value = quiz.type;
+
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            quiz.questions.forEach((q, i) => {
+                addQuestion();
+                const blocks = container.querySelectorAll('.question-block');
+                const lastBlock = blocks[blocks.length - 1];
+                lastBlock.querySelector('.question-input').value = q.question;
+
+                if (quiz.type === 'multiple-choice') {
+                    const choicesInputs = lastBlock.querySelectorAll('.choice-input');
+                    q.choices.forEach((choice, j) => {
+                        if (choicesInputs[j]) choicesInputs[j].value = choice;
+                    });
+                    lastBlock.querySelector('.answer-input').value = q.answer;
+                } else if (quiz.type === 'identification') {
+                    lastBlock.querySelector('.answer-input').value = q.answer;
+                }
+            });
+
+            document.querySelector('.save-quiz-btn').innerHTML = '<i data-lucide="check"></i> Update Quiz';
+            lucide.createIcons();
+        }
+
+        function copyCode() {
+            const code = document.getElementById('generated-code').innerText;
+            navigator.clipboard.writeText(code);
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.innerHTML = '<i data-lucide="check"></i>';
+            lucide.createIcons();
+            setTimeout(() => {
+                copyBtn.innerHTML = '<i data-lucide="copy"></i>';
+                lucide.createIcons();
+            }, 2000);
+        }
+
+        function closeModal() {
+            document.getElementById('code-modal').classList.add('hidden');
+            showView('teacher-dashboard');
+        }
+
+        function renderQuizzes() {
+            const list = document.getElementById('active-quizzes');
+            const empty = document.getElementById('quiz-list-container');
+
+            if (quizzes.length === 0) {
+                list.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            list.classList.remove('hidden');
+            empty.classList.add('hidden');
+            list.innerHTML = quizzes.map((q, index) => `
+                <div class="quiz-item-card">
+                    <div class="quiz-info">
+                        <h3>${q.title}</h3>
+                        <p>${q.type.replace('-', ' ')} • ${q.date}</p>
+                    </div>
+                    <div class="quiz-actions">
+                        <button class="action-btn edit" onclick="editQuiz(${index})" title="Edit Quiz">
+                            <i data-lucide="edit-3"></i>
+                            <span>Edit</span>
+                        </button>
+                        <button class="action-btn delete" onclick="deleteQuiz(${index})" title="Delete Quiz">
+                            <i data-lucide="trash-2"></i>
+                            <span>Delete</span>
+                        </button>
+                        <div class="quiz-code-display">
+                            <span>${q.code}</span>
+                            <button onclick="navigator.clipboard.writeText('${q.code}'); alert('Code copied!')" title="Copy Code"><i data-lucide="copy"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Initial Question
+        addQuestion();
+    </script>
+</body>
+
+</html>
