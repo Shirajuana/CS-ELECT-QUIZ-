@@ -25,14 +25,8 @@
                 <p class="subtitle">Choose your learning path and start exploring!</p>
             </header>
 
-            <section class="code-entry">
-                <div class="code-input-wrapper">
-                    <button class="code-btn" onclick="showView('student-view')">
-                        <i data-lucide="key-round"></i>
-                        <span>Have a code? Enter it here!</span>
-                    </button>
-                </div>
-            </section>
+            <!-- Removed code-entry from here -->
+
 
             <section class="cards-grid">
                 <div class="card practice" onclick="showView('practice-view')">
@@ -149,7 +143,79 @@
                 <button class="close-modal-btn" onclick="closeModal()">Back to Dashboard</button>
             </div>
         </div>
+        <!-- Student View (Code Entry) -->
+        <div id="student-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Enter Quiz Code</h1>
+                <p class="subtitle">Enter the 6-character code provided by your teacher</p>
+            </header>
+
+            <div class="quiz-form-card">
+                <div class="form-group">
+                    <input type="text" id="student-quiz-code" placeholder="XXXXXX" maxlength="6"
+                        style="text-align: center; font-size: 2rem; letter-spacing: 4px; text-transform: uppercase;">
+                </div>
+                <button class="create-quiz-btn" onclick="joinQuiz()">
+                    <i data-lucide="play-circle"></i> Join Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz View (Taking the Quiz) -->
+        <div id="quiz-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('student-view')"><i data-lucide="arrow-left"></i> Exit Quiz</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1 id="active-quiz-title">Quiz Title</h1>
+                <p class="subtitle" id="active-quiz-info">Type • Date</p>
+            </header>
+
+            <div id="quiz-question-container">
+                <!-- Current question will be rendered here -->
+            </div>
+
+            <div class="quiz-navigation">
+                <button id="prev-q-btn" class="action-btn" onclick="changeQuestion(-1)" disabled>Previous</button>
+                <span id="question-progress">Question 1 of 10</span>
+                <button id="next-q-btn" class="save-quiz-btn" onclick="changeQuestion(1)">Next Question</button>
+                <button id="submit-quiz-btn" class="save-quiz-btn hidden" onclick="submitQuiz()">Submit Quiz</button>
+            </div>
+        </div>
+
+        <!-- Quiz Results View -->
+        <div id="results-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Quiz Results</h1>
+                <div class="score-container">
+                    <div class="score-circle">
+                        <span id="final-score">0/0</span>
+                        <p>Score</p>
+                    </div>
+                </div>
+                <h2 id="final-percentage">0%</h2>
+                <p id="result-message" class="subtitle">Great job completing the quiz!</p>
+            </header>
+
+            <div class="results-review">
+                <h3>Detailed Review</h3>
+                <div id="review-list" class="review-grid">
+                    <!-- Review items will be rendered here -->
+                </div>
+            </div>
+
+            <button class="create-quiz-btn" onclick="showView('home-view')">
+                <i data-lucide="home"></i> Return to Home
+            </button>
+        </div>
     </main>
+
 
     <script>
         // State Management
@@ -366,6 +432,157 @@
             `).join('');
             lucide.createIcons();
         }
+
+        // Student Quiz Logic
+        let currentQuiz = null;
+        let currentQuestionIndex = 0;
+        let studentAnswers = [];
+
+        function joinQuiz() {
+            const code = document.getElementById('student-quiz-code').value.toUpperCase();
+            const quiz = quizzes.find(q => q.code === code);
+
+            if (quiz) {
+                currentQuiz = quiz;
+                currentQuestionIndex = 0;
+                studentAnswers = new Array(quiz.questions.length).fill('');
+                showView('quiz-view');
+                renderQuizInfo();
+                renderQuizQuestion();
+            } else {
+                alert('Invalid code. Please check and try again.');
+            }
+        }
+
+        function renderQuizInfo() {
+            document.getElementById('active-quiz-title').innerText = currentQuiz.title;
+            document.getElementById('active-quiz-info').innerText = `${currentQuiz.type.replace('-', ' ')} • ${currentQuiz.date}`;
+        }
+
+        function renderQuizQuestion() {
+            const container = document.getElementById('quiz-question-container');
+            const q = currentQuiz.questions[currentQuestionIndex];
+            const qCount = currentQuiz.questions.length;
+
+            document.getElementById('question-progress').innerText = `Question ${currentQuestionIndex + 1} of ${qCount}`;
+            document.getElementById('prev-q-btn').disabled = currentQuestionIndex === 0;
+
+            if (currentQuestionIndex === qCount - 1) {
+                document.getElementById('next-q-btn').classList.add('hidden');
+                document.getElementById('submit-quiz-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('next-q-btn').classList.remove('hidden');
+                document.getElementById('submit-quiz-btn').classList.add('hidden');
+            }
+
+            let html = `
+                <div class="question-block">
+                    <h3>${q.question}</h3>
+                    <div class="student-input-area">
+            `;
+
+            if (currentQuiz.type === 'multiple-choice') {
+                html += `
+                    <div class="choices-grid">
+                        ${q.choices.map((choice, i) => `
+                            <button class="choice-btn ${studentAnswers[currentQuestionIndex] === choice ? 'selected' : ''}" 
+                                onclick="selectChoice('${choice.replace(/'/g, "\\'")}')">
+                                ${choice}
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+            } else if (currentQuiz.type === 'identification') {
+                html += `
+                    <input type="text" class="answer-input" placeholder="Your Answer" 
+                        value="${studentAnswers[currentQuestionIndex]}" 
+                        oninput="studentAnswers[currentQuestionIndex] = this.value">
+                `;
+            } else {
+                html += `
+                    <textarea class="essay-input" placeholder="Write your response here..." 
+                        oninput="studentAnswers[currentQuestionIndex] = this.value">${studentAnswers[currentQuestionIndex]}</textarea>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        function selectChoice(choice) {
+            studentAnswers[currentQuestionIndex] = choice;
+            renderQuizQuestion();
+        }
+
+        function changeQuestion(delta) {
+            currentQuestionIndex += delta;
+            renderQuizQuestion();
+        }
+
+        function submitQuiz() {
+            if (confirm('Are you sure you want to submit your quiz?')) {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            const reviewList = document.getElementById('review-list');
+            let score = 0;
+            let total = currentQuiz.questions.length;
+
+            reviewList.innerHTML = currentQuiz.questions.map((q, i) => {
+                const studentAns = studentAnswers[i] || '(No answer)';
+                const correctAns = q.answer || '';
+                let isCorrect = false;
+
+                if (currentQuiz.type === 'essay') {
+                    isCorrect = studentAns.trim().length > 0; // Simple check for essay
+                } else if (currentQuiz.type === 'multiple-choice') {
+                    // For multiple choice, compare with the correct option label (e.g., "Option B")
+                    // But our code stores choice values. Let's assume the teacher put the exact choice text in answer-input.
+                    isCorrect = studentAns.trim().toLowerCase() === correctAns.trim().toLowerCase();
+                } else {
+                    isCorrect = studentAns.trim().toLowerCase() === correctAns.trim().toLowerCase();
+                }
+
+                if (isCorrect) score++;
+
+                return `
+                    <div class="review-item ${isCorrect ? 'correct' : 'incorrect'}">
+                        <div class="review-item-header">
+                            <span class="q-label">Question ${i + 1}</span>
+                            <div class="status-badge">
+                                <i data-lucide="${isCorrect ? 'check' : 'x'}"></i>
+                                <span>${isCorrect ? 'CORRECT' : 'INCORRECT'}</span>
+                            </div>
+                        </div>
+                        ${!isCorrect ? `
+                        <div class="review-item-details">
+                            <span class="correct-ans-label">CORRECT ANSWER:</span>
+                            <span class="correct-ans-value">${correctAns}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const percentage = Math.round((score / total) * 100);
+            document.getElementById('final-score').innerText = `${score}/${total}`;
+            document.getElementById('final-percentage').innerText = `${percentage}%`;
+
+            let message = "Keep practicing!";
+            if (percentage >= 90) message = "Excellent! You're a master!";
+            else if (percentage >= 70) message = "Good job! You have a solid understanding.";
+            else if (percentage >= 50) message = "Good effort! Review the results to improve.";
+            document.getElementById('result-message').innerText = message;
+
+            showView('results-view');
+            lucide.createIcons();
+        }
+
 
         // Initialize Lucide icons
         lucide.createIcons();
