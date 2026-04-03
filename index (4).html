@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="quizimage.jpg">
+    <title>QuizLearn - Your Learning Path</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* ══ Practice Mode Dark Shell ══ */
+        #practice-view { background: none; padding: 0; }
+
+        .pm-shell {
+            background: linear-gradient(160deg, #1a1233 0%, #0f0a22 100%);
+            border-radius: 28px;
+            max-width: 480px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            min-height: 580px;
+        }
+
+        .pm-header { padding: 20px 22px 14px; }
+        .pm-header h2 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .pm-header p  { font-size: 12px; color: #9982cc; }
+
+        .pm-tabs {
+            display: flex;
+            background: #231744;
+            margin: 0 16px 16px;
+            border-radius: 14px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .pm-tab {
+            flex: 1; padding: 9px; border-radius: 11px; border: none;
+            background: transparent; color: #7766aa; font-size: 13px;
+            font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s;
+        }
+
+        .pm-tab.active { background: #6c4de6; color: #fff; }
+
+        .pm-body { flex: 1; padding: 0 16px 22px; overflow-y: auto; }
+
+        /* Input card */
+        .pm-input-card { background: #231744; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+        .pm-input-card label {
+            display: block; font-size: 11px; font-weight: 700; color: #9982cc;
+            text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+        }
+        .pm-input-card input {
+            width: 100%; background: #1a1233; border: 1.5px solid #3a2a6a;
+            border-radius: 10px; padding: 11px 14px; color: #fff; font-size: 14px;
+            font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .pm-input-card input:focus { border-color: #6c4de6; }
+        .pm-input-card input::placeholder { color: #5544aa; }
+        .pm-input-card input.error { border-color: #d85a30; }
+
+        /* Info card */
+        .pm-info-card { background: #231744; border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
+        .pm-info-card .ic-label { font-size: 12px; color: #9982cc; margin-bottom: 10px; }
+        .pm-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .pm-tag { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .pm-tag.purple { background: #3a1a8a; color: #b39dff; }
+        .pm-tag.green  { background: #0f3a2a; color: #5dcaa5; }
+        .pm-tag.orange { background: #3a1a00; color: #f5a623; }
+
+        .pm-stat-row {
+            background: #1a1233; border-radius: 10px; padding: 10px 14px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+        }
+        .pm-stat-row span:first-child { font-size: 13px; color: #ccc; }
+        .pm-stat-row span:last-child  { font-size: 14px; font-weight: 600; color: #fff; }
+        .pm-stat-row span.orange      { color: #f5a623; }
+
+        /* Progress */
+        .pm-progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .pm-progress-bar { flex: 1; height: 7px; background: #231744; border-radius: 4px; overflow: hidden; }
+        .pm-progress-fill { height: 100%; background: linear-gradient(90deg,#6c4de6,#f5a623); border-radius: 4px; transition: width 0.4s; }
+        .pm-progress-label { font-size: 11px; color: #9982cc; white-space: nowrap; font-weight: 600; }
+
+        /* Score row */
+        .pm-score-row {
+            display: flex; background: #231744; border-radius: 16px;
+            padding: 14px 16px; margin-bottom: 14px; align-items: center; justify-content: space-between;
+        }
+        .pm-score-val   { font-size: 26px; font-weight: 700; color: #f5a623; }
+        .pm-score-lbl   { font-size: 11px; color: #9982cc; }
+        .pm-streak-box  { background: #3a1a00; border-radius: 12px; padding: 8px 14px; text-align: center; }
+        .pm-streak-num  { font-size: 18px; font-weight: 700; color: #f5a623; }
+        .pm-streak-lbl  { font-size: 10px; color: #aa7700; }
+
+        /* Question card */
+        .pm-q-card { background: #231744; border-radius: 16px; padding: 18px; margin-bottom: 12px; }
+        .pm-q-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .pm-q-cat  { font-size: 12px; color: #9982cc; font-weight: 600; }
+        .pm-q-badge { background: #3a1a8a; color: #b39dff; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+        .pm-q-text  { font-size: 16px; color: #fff; font-weight: 600; line-height: 1.45; margin-bottom: 16px; }
+
+        /* Feedback */
+        .pm-feedback { display: none; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 12px; align-items: center; gap: 8px; }
+        .pm-feedback.show    { display: flex; }
+        .pm-feedback.correct { background: #0f4a30; border: 1.5px solid #1d9e75; color: #5dcaa5; }
+        .pm-feedback.wrong   { background: #4a1020; border: 1.5px solid #d85a30; color: #f0997b; }
+
+        /* Choices */
+        .pm-choices { display: flex; flex-direction: column; gap: 9px; }
+        .pm-choice {
+            background: #1a1233; border: 1.5px solid #3a2a6a; border-radius: 12px;
+            padding: 11px 14px; color: #ccc; font-size: 13px; text-align: left;
+            cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.18s;
+            display: flex; align-items: center; gap: 12px; width: 100%;
+        }
+        .pm-choice:hover       { border-color: #6c4de6; color: #fff; }
+        .pm-choice.correct-ans { background: #0f4a30 !important; border-color: #1d9e75 !important; color: #5dcaa5 !important; }
+        .pm-choice.wrong-ans   { background: #4a1020 !important; border-color: #d85a30 !important; color: #f0997b !important; }
+        .pm-choice-letter {
+            width: 26px; height: 26px; border-radius: 50%; background: #2d2050;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; flex-shrink: 0;
+        }
+
+        /* Result */
+        .pm-result { display: none; flex-direction: column; align-items: center; padding: 10px 0 20px; text-align: center; }
+        .pm-result.show { display: flex; }
+        .pm-result-ring {
+            width: 100px; height: 100px; border-radius: 50%; border: 4px solid #f5a623;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            margin-bottom: 18px; background: #231744;
+        }
+        .pm-result-ring .pct  { font-size: 26px; font-weight: 700; color: #f5a623; line-height: 1; }
+        .pm-result-ring .lbl  { font-size: 11px; color: #9982cc; margin-top: 2px; }
+        .pm-result-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .pm-result-sub   { font-size: 13px; color: #9982cc; margin-bottom: 22px; line-height: 1.5; }
+        .pm-result-stats { display: flex; gap: 10px; width: 100%; margin-bottom: 20px; }
+        .pm-stat-box { flex: 1; background: #231744; border-radius: 14px; padding: 14px 10px; text-align: center; }
+        .pm-stat-box .sv  { font-size: 22px; font-weight: 700; color: #fff; }
+        .pm-stat-box .sl  { font-size: 10px; color: #9982cc; margin-top: 3px; }
+        .pm-stat-box.hl .sv { color: #f5a623; }
+
+        /* Leaderboard */
+        .pm-podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 18px; }
+        .pm-pod {
+            display: flex; flex-direction: column; align-items: center; border-radius: 18px;
+            padding: 14px 10px 12px; position: relative; flex: 1; max-width: 130px;
+            border: 1.5px solid #3a2a6a; background: #231744;
+        }
+        .pm-pod.first  { background: #2d1a5a; border-color: #6c4de6; padding-top: 22px; }
+        .pm-pod-crown  { position: absolute; top: -18px; font-size: 24px; }
+        .pm-pod-avatar {
+            width: 44px; height: 44px; border-radius: 50%; background: #3a2a6a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; font-weight: 700; color: #bba0ff; margin-bottom: 8px;
+        }
+        .pm-pod.first .pm-pod-avatar { width: 52px; height: 52px; background: #6c4de6; color: #fff; border: 3px solid #f5a623; }
+        .pm-pod-name  { font-size: 12px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+        .pm-pod-score { font-size: 14px; font-weight: 700; color: #f5a623; margin-bottom: 6px; }
+        .pm-pod-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+        .pm-pod.first  .pm-pod-badge { background: #f5a623; color: #1a1233; }
+        .pm-pod.second .pm-pod-badge { background: #888; color: #fff; }
+        .pm-pod.third  .pm-pod-badge { background: #b87333; color: #fff; }
+
+        .pm-lb-section-label { font-size: 10px; color: #9982cc; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; margin-bottom: 8px; padding-left: 2px; }
+        .pm-lb-row {
+            display: flex; align-items: center; background: #231744; border-radius: 12px;
+            padding: 10px 14px; margin-bottom: 7px; gap: 10px; border: 1.5px solid transparent;
+        }
+        .pm-lb-row.me { border-color: #6c4de6; background: #2d1a5a; }
+        .pm-lb-rank   { font-size: 12px; color: #9982cc; width: 20px; text-align: center; flex-shrink: 0; font-weight: 700; }
+        .pm-lb-avatar { width: 34px; height: 34px; border-radius: 50%; background: #3a2a6a; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #bba0ff; flex-shrink: 0; }
+        .pm-lb-name   { flex: 1; font-size: 13px; color: #fff; font-weight: 600; }
+        .pm-lb-sub    { font-size: 10px; color: #9982cc; }
+        .pm-lb-score  { font-size: 15px; font-weight: 700; color: #f5a623; }
+        .pm-empty-lb  { text-align: center; padding: 30px 0; color: #7766aa; font-size: 13px; width: 100%; }
+
+        /* Buttons */
+        .pm-btn { width: 100%; background: #6c4de6; color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; margin-bottom: 8px; transition: background 0.2s; }
+        .pm-btn:hover { background: #7c5df6; }
+        .pm-btn.ghost { background: #231744; color: #9982cc; font-size: 13px; font-weight: 600; }
+        .pm-btn.ghost:hover { background: #2d2060; }
+        .pm-skip-btn { width: 100%; background: #231744; color: #9982cc; border: none; border-radius: 12px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+        .pm-skip-btn:hover { background: #2d2060; color: #ccc; }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+
+        <!-- ══ HOME ══ -->
+        <div id="home-view" class="view">
+            <header class="hero">
+                <div class="logo-container">
+                    <i data-lucide="book-open" class="logo-icon"></i>
+                </div>
+                <h1>QuizLearn</h1>
+                <p class="subtitle">Choose your learning path and start exploring!</p>
+            </header>
+
+            <section class="cards-grid">
+                <div class="card practice" onclick="showView('practice-view')">
+                    <div class="card-icon-wrapper"><i data-lucide="book-open"></i></div>
+                    <h3>Practice Mode</h3>
+                    <p>Test your knowledge and climb the leaderboard</p>
+                    <button class="start-btn">Start Learning &rarr;</button>
+                </div>
+
+                <div class="card student" onclick="showView('student-view')">
+                    <div class="card-icon-wrapper"><i data-lucide="graduation-cap"></i></div>
+                    <h3>Student Deck</h3>
+                    <p>Learning materials for students</p>
+                    <button class="start-btn">Start Learning &rarr;</button>
+                </div>
+
+                <div class="card teacher" onclick="showView('teacher-dashboard')">
+                    <div class="card-icon-wrapper"><i data-lucide="users"></i></div>
+                    <h3>Teacher Dashboard</h3>
+                    <p>Create quizzes and generate student codes</p>
+                    <button class="start-btn">Open Dashboard &rarr;</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- ══ PRACTICE VIEW ══ -->
+        <div id="practice-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+
+            <div class="pm-shell">
+                <div class="pm-header">
+                    <h2>Practice Mode</h2>
+                    <p>Answer questions &amp; earn points</p>
+                </div>
+
+                <div class="pm-tabs">
+                    <button class="pm-tab active" id="pm-tab-learn" onclick="pmSwitchTab('learn')">Learn</button>
+                    <button class="pm-tab"         id="pm-tab-lb"    onclick="pmSwitchTab('lb')">Leaderboard</button>
+                </div>
+
+                <!-- LEARN TAB -->
+                <div id="pm-learn" class="pm-body">
+
+                    <!-- username entry -->
+                    <div id="pm-state-username">
+                        <div class="pm-input-card">
+                            <label>Your username</label>
+                            <input type="text" id="pm-username" placeholder="e.g. alex_learns" maxlength="20">
+                        </div>
+                        <div class="pm-info-card">
+                            <div class="ic-label">What you'll practice today:</div>
+                            <div class="pm-tags">
+                                <span class="pm-tag purple">Math</span>
+                                <span class="pm-tag green">Science</span>
+                                <span class="pm-tag orange">History</span>
+                            </div>
+                            <div class="pm-stat-row"><span>Questions</span><span>5 total</span></div>
+                            <div class="pm-stat-row"><span>Points per correct</span><span class="orange">+20 pts</span></div>
+                        </div>
+                        <button class="pm-btn" onclick="pmStartQuiz()">Start Practice &rarr;</button>
+                    </div>
+
+                    <!-- quiz -->
+                    <div id="pm-state-quiz" style="display:none;">
+                        <div class="pm-progress-row">
+                            <div class="pm-progress-bar">
+                                <div class="pm-progress-fill" id="pm-progress-fill" style="width:20%"></div>
+                            </div>
+                            <span class="pm-progress-label" id="pm-progress-label">1 / 5</span>
+                        </div>
+
+                        <div class="pm-score-row">
+                            <div>
+                                <div class="pm-score-lbl">Score</div>
+                                <div class="pm-score-val" id="pm-score-val">0 pts</div>
+                            </div>
+                            <div class="pm-streak-box">
+                                <div class="pm-streak-num" id="pm-streak-num">🔥 0</div>
+                                <div class="pm-streak-lbl">streak</div>
+                            </div>
+                        </div>
+
+                        <div class="pm-q-card">
+                            <div class="pm-q-meta">
+                                <span class="pm-q-cat" id="pm-q-cat">Math</span>
+                                <span class="pm-q-badge" id="pm-q-badge">Q1</span>
+                            </div>
+                            <div class="pm-q-text" id="pm-q-text">Loading...</div>
+                            <div class="pm-feedback" id="pm-feedback"></div>
+                            <div class="pm-choices" id="pm-choices"></div>
+                        </div>
+
+                        <button class="pm-skip-btn" id="pm-skip-btn" onclick="pmNextQuestion()">Skip &rarr;</button>
+                    </div>
+
+                    <!-- result -->
+                    <div class="pm-result" id="pm-state-result">
+                        <div class="pm-result-ring">
+                            <div class="pct" id="pm-res-pct">0%</div>
+                            <div class="lbl">accuracy</div>
+                        </div>
+                        <div class="pm-result-title" id="pm-res-title">Well done!</div>
+                        <div class="pm-result-sub" id="pm-res-sub">You scored 0 points.</div>
+                        <div class="pm-result-stats">
+                            <div class="pm-stat-box hl"><div class="sv" id="pm-res-score">0</div><div class="sl">points</div></div>
+                            <div class="pm-stat-box"><div class="sv" id="pm-res-correct">0/5</div><div class="sl">correct</div></div>
+                            <div class="pm-stat-box"><div class="sv" id="pm-res-streak">0</div><div class="sl">best streak</div></div>
+                        </div>
+                        <button class="pm-btn" onclick="pmResetQuiz()">Play Again</button>
+                        <button class="pm-btn ghost" onclick="pmSwitchTab('lb')">View Leaderboard &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- LEADERBOARD TAB -->
+                <div id="pm-lb" class="pm-body" style="display:none;">
+                    <div class="pm-podium" id="pm-podium">
+                        <div class="pm-empty-lb">No scores yet — be the first!</div>
+                    </div>
+                    <div class="pm-lb-section-label" id="pm-lb-rest-label" style="display:none;">Rankings #4 – #13</div>
+                    <div id="pm-lb-rows"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ TEACHER DASHBOARD ══ -->
+        <div id="teacher-dashboard" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Teacher Dashboard</h1>
+                <p class="subtitle">Create quizzes and share codes with your students</p>
+            </header>
+
+            <button class="create-quiz-btn" onclick="showView('create-quiz-view')">
+                <i data-lucide="plus"></i> Create New Quiz
+            </button>
+
+            <div id="quiz-list-container" class="empty-state">
+                <div class="empty-icon">
+                    <img src="https://cdni.iconscout.com/illustration/premium/thumb/no-data-found-8867393-7276247.png"
+                        alt="No data" style="width: 200px; filter: hue-rotate(280deg);">
+                </div>
+                <h2>No quizzes yet</h2>
+                <p>Create your first quiz to get started!</p>
+            </div>
+
+            <div id="active-quizzes" class="quiz-grid hidden"></div>
+        </div>
+
+        <!-- ══ CREATE QUIZ ══ -->
+        <div id="create-quiz-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('teacher-dashboard')"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Create New Quiz</h1>
+                <p class="subtitle">Add questions and choose your quiz type</p>
+            </header>
+
+            <div class="quiz-form-card">
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title</label>
+                    <input type="text" id="quiz-title" placeholder="e.g. Science Midterm">
+                </div>
+                <div class="form-group">
+                    <label for="quiz-type">Select Quiz Type</label>
+                    <select id="quiz-type" onchange="updateFormType()">
+                        <option value="multiple-choice">Multiple Choice</option>
+                        <option value="essay">Essay</option>
+                        <option value="identification">Identification</option>
+                    </select>
+                </div>
+                <div id="questions-container"></div>
+                <button class="add-question-btn" onclick="addQuestion()">
+                    <i data-lucide="plus-circle"></i> Add Question
+                </button>
+                <div class="form-actions">
+                    <button class="save-quiz-btn" onclick="saveQuiz()">
+                        <i data-lucide="save"></i> Save & Generate Code
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ CODE MODAL ══ -->
+        <div id="code-modal" class="modal hidden">
+            <div class="modal-content">
+                <i data-lucide="check-circle" class="success-icon"></i>
+                <h2>Quiz Created Successfully!</h2>
+                <p>Share this code with your students:</p>
+                <div class="generated-code-box">
+                    <span id="generated-code">XXXXXX</span>
+                    <button id="copy-btn" onclick="copyCode()"><i data-lucide="copy"></i></button>
+                </div>
+                <button class="close-modal-btn" onclick="closeModal()">Back to Dashboard</button>
+            </div>
+        </div>
+
+        <!-- ══ STUDENT VIEW ══ -->
+        <div id="student-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Enter Quiz Code</h1>
+                <p class="subtitle">Enter the 6-character code provided by your teacher</p>
+            </header>
+            <div class="quiz-form-card" style="text-align:center;">
+                <div class="form-group">
+                    <input type="text" id="student-quiz-code" placeholder="XXXXXX" maxlength="6"
+                        style="text-align:center;font-size:2rem;letter-spacing:4px;text-transform:uppercase;font-family:inherit;">
+                </div>
+                <button class="create-quiz-btn" onclick="joinQuiz()" style="margin-bottom:0;">
+                    <i data-lucide="play-circle"></i> Join Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- ══ QUIZ TAKING ══ -->
+        <div id="quiz-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('student-view')"><i data-lucide="arrow-left"></i> Exit Quiz</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1 id="active-quiz-title">Quiz Title</h1>
+                <p class="subtitle" id="active-quiz-info">Type &bull; Date</p>
+            </header>
+            <div id="quiz-question-container"></div>
+            <div class="quiz-navigation">
+                <button id="prev-q-btn" class="nav-btn" onclick="changeQuestion(-1)" disabled>
+                    <i data-lucide="arrow-left"></i> Previous
+                </button>
+                <span id="question-progress">Question 1 of 1</span>
+                <button id="next-q-btn" class="nav-btn primary" onclick="changeQuestion(1)">
+                    Next <i data-lucide="arrow-right"></i>
+                </button>
+                <button id="submit-quiz-btn" class="nav-btn success hidden" onclick="submitQuiz()">
+                    <i data-lucide="check"></i> Submit Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- ══ RESULTS ══ -->
+        <div id="results-view" class="view hidden">
+            <nav class="back-nav">
+                <a href="#" onclick="showView('home-view')"><i data-lucide="arrow-left"></i> Back to Home</a>
+            </nav>
+            <header class="dashboard-header">
+                <h1>Quiz Results</h1>
+                <div class="score-container">
+                    <div class="score-circle">
+                        <span id="final-score">0/0</span>
+                        <p>Score</p>
+                    </div>
+                </div>
+                <h2 id="final-percentage">0%</h2>
+                <p id="result-message" class="subtitle">Great job completing the quiz!</p>
+            </header>
+            <div class="results-review">
+                <h3>Detailed Review</h3>
+                <div id="review-list" class="review-grid"></div>
+            </div>
+            <button class="create-quiz-btn" onclick="showView('home-view')">
+                <i data-lucide="home"></i> Return to Home
+            </button>
+        </div>
+
+    </main>
+
+    <script>
+        /* ════════════════════════════════════════
+           TEACHER / STUDENT LOGIC
+        ════════════════════════════════════════ */
+        let quizzes = JSON.parse(localStorage.getItem('quizzes')) || [];
+        let editingIndex = -1;
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(d => d.classList.add('hidden'));
+            const t = document.getElementById(viewId);
+            if (t) t.classList.remove('hidden');
+            if (viewId === 'teacher-dashboard') { editingIndex = -1; renderQuizzes(); }
+            if (viewId === 'create-quiz-view' && editingIndex === -1) resetQuizForm();
+            lucide.createIcons();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetQuizForm() {
+            document.getElementById('quiz-title').value = '';
+            document.getElementById('quiz-type').value  = 'multiple-choice';
+            document.getElementById('questions-container').innerHTML = '';
+            const s = document.querySelector('.save-quiz-btn');
+            if (s) s.innerHTML = '<i data-lucide="save"></i> Save & Generate Code';
+            addQuestion();
+        }
+
+        function updateFormType() {
+            document.getElementById('questions-container').innerHTML = '';
+            addQuestion();
+        }
+
+        function addQuestion() {
+            const container = document.getElementById('questions-container');
+            const type  = document.getElementById('quiz-type').value;
+            const qCount = container.children.length + 1;
+            const qDiv  = document.createElement('div');
+            qDiv.className = 'question-block';
+
+            let extra = '';
+            if (type === 'multiple-choice') {
+                extra = `
+                    <div class="choices-grid">
+                        <input type="text" placeholder="Option A" class="choice-input" data-label="A">
+                        <input type="text" placeholder="Option B" class="choice-input" data-label="B">
+                        <input type="text" placeholder="Option C" class="choice-input" data-label="C">
+                        <input type="text" placeholder="Option D" class="choice-input" data-label="D">
+                    </div>
+                    <div class="answer-hint">Correct answer letter (A, B, C, or D):</div>
+                    <input type="text" placeholder="e.g. A" class="answer-input" maxlength="1" style="text-transform:uppercase;">`;
+            } else if (type === 'identification') {
+                extra = `<input type="text" placeholder="Correct Answer" class="answer-input">`;
+            } else {
+                extra = `<p class="essay-info">Students will provide a long-form answer.</p>`;
+            }
+
+            qDiv.innerHTML = `
+                <div class="q-header">
+                    <h4>Question ${qCount}</h4>
+                    <button class="remove-q" onclick="this.closest('.question-block').remove();renumberQuestions();" title="Remove">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+                <input type="text" placeholder="Enter your question here" class="question-input">
+                ${extra}`;
+            container.appendChild(qDiv);
+            lucide.createIcons();
+        }
+
+        function renumberQuestions() {
+            document.querySelectorAll('#questions-container .question-block h4').forEach((h, i) => {
+                h.textContent = `Question ${i + 1}`;
+            });
+        }
+
+        function saveQuiz() {
+            const title = document.getElementById('quiz-title').value.trim();
+            const type  = document.getElementById('quiz-type').value;
+            if (!title) return alert('Please enter a quiz title.');
+            const blocks = document.querySelectorAll('#questions-container .question-block');
+            if (!blocks.length) return alert('Please add at least one question.');
+            const questions = []; let valid = true;
+            Array.from(blocks).forEach((block, idx) => {
+                const q = block.querySelector('.question-input').value.trim();
+                if (!q) { alert(`Question ${idx+1} is empty.`); valid = false; return; }
+                const ans     = block.querySelector('.answer-input')?.value.trim().toUpperCase() || '';
+                const choices = Array.from(block.querySelectorAll('.choice-input')).map(i => i.value.trim());
+                if (type === 'multiple-choice' && !['A','B','C','D'].includes(ans)) {
+                    alert(`Question ${idx+1}: answer must be A, B, C, or D.`); valid = false; return;
+                }
+                questions.push({ question: q, answer: ans, choices });
+            });
+            if (!valid) return;
+            if (editingIndex > -1) {
+                quizzes[editingIndex] = { ...quizzes[editingIndex], title, type, questions };
+                localStorage.setItem('quizzes', JSON.stringify(quizzes));
+                alert('Quiz updated!');
+                showView('teacher-dashboard');
+            } else {
+                const code = Math.random().toString(36).substring(2,8).toUpperCase();
+                quizzes.push({ title, type, code, questions, date: new Date().toLocaleDateString() });
+                localStorage.setItem('quizzes', JSON.stringify(quizzes));
+                document.getElementById('generated-code').innerText = quizzes[quizzes.length-1].code;
+                document.getElementById('code-modal').classList.remove('hidden');
+                lucide.createIcons();
+            }
+            editingIndex = -1;
+        }
+
+        function deleteQuiz(i) {
+            if (confirm('Delete this quiz?')) { quizzes.splice(i,1); localStorage.setItem('quizzes',JSON.stringify(quizzes)); renderQuizzes(); }
+        }
+
+        function editQuiz(index) {
+            editingIndex = index;
+            const quiz = quizzes[index];
+            showView('create-quiz-view');
+            document.getElementById('quiz-title').value = quiz.title;
+            document.getElementById('quiz-type').value  = quiz.type;
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            quiz.questions.forEach(q => {
+                addQuestion();
+                const lb = container.querySelectorAll('.question-block')[container.querySelectorAll('.question-block').length-1];
+                lb.querySelector('.question-input').value = q.question;
+                if (quiz.type === 'multiple-choice') {
+                    const ci = lb.querySelectorAll('.choice-input');
+                    q.choices.forEach((c,j) => { if (ci[j]) ci[j].value = c; });
+                    lb.querySelector('.answer-input').value = q.answer;
+                } else if (quiz.type === 'identification') {
+                    lb.querySelector('.answer-input').value = q.answer;
+                }
+            });
+            const s = document.querySelector('.save-quiz-btn');
+            if (s) s.innerHTML = '<i data-lucide="check"></i> Update Quiz';
+            lucide.createIcons();
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(document.getElementById('generated-code').innerText).catch(()=>{});
+            document.getElementById('copy-btn').innerHTML = '<i data-lucide="check"></i>';
+            lucide.createIcons();
+            setTimeout(()=>{ document.getElementById('copy-btn').innerHTML='<i data-lucide="copy"></i>'; lucide.createIcons(); },2000);
+        }
+
+        function closeModal() { document.getElementById('code-modal').classList.add('hidden'); showView('teacher-dashboard'); }
+
+        function renderQuizzes() {
+            const list  = document.getElementById('active-quizzes');
+            const empty = document.getElementById('quiz-list-container');
+            if (!quizzes.length) { list.classList.add('hidden'); empty.classList.remove('hidden'); return; }
+            list.classList.remove('hidden'); empty.classList.add('hidden');
+            list.innerHTML = quizzes.map((q, i) => `
+                <div class="quiz-item-card">
+                    <div class="quiz-info">
+                        <h3>${q.title}</h3>
+                        <p>${q.type.replace('-',' ')} &bull; ${q.date}</p>
+                    </div>
+                    <div class="quiz-actions">
+                        <button class="action-btn edit" onclick="editQuiz(${i})"><i data-lucide="edit-3"></i><span>Edit</span></button>
+                        <button class="action-btn delete" onclick="deleteQuiz(${i})"><i data-lucide="trash-2"></i><span>Delete</span></button>
+                        <div class="quiz-code-display">
+                            <span>${q.code}</span>
+                            <button onclick="navigator.clipboard.writeText('${q.code}').then(()=>alert('Copied!'))"><i data-lucide="copy"></i></button>
+                        </div>
+                    </div>
+                </div>`).join('');
+            lucide.createIcons();
+        }
+
+        let currentQuiz = null, currentQuestionIndex = 0, studentAnswers = [];
+
+        function joinQuiz() {
+            const code = document.getElementById('student-quiz-code').value.trim().toUpperCase();
+            if (!code) return alert('Please enter a quiz code.');
+            const quiz = quizzes.find(q => q.code === code);
+            if (!quiz) return alert('Invalid code. Please check and try again.');
+            currentQuiz = quiz; currentQuestionIndex = 0;
+            studentAnswers = new Array(quiz.questions.length).fill('');
+            showView('quiz-view'); renderQuizInfo(); renderQuizQuestion();
+        }
+
+        function renderQuizInfo() {
+            document.getElementById('active-quiz-title').innerText = currentQuiz.title;
+            document.getElementById('active-quiz-info').innerText  = `${currentQuiz.type.replace('-',' ')} \u2022 ${currentQuiz.date}`;
+        }
+
+        function renderQuizQuestion() {
+            const container = document.getElementById('quiz-question-container');
+            const q = currentQuiz.questions[currentQuestionIndex];
+            const qCount = currentQuiz.questions.length;
+            const prog = document.getElementById('question-progress');
+            const prev = document.getElementById('prev-q-btn');
+            const next = document.getElementById('next-q-btn');
+            const sub  = document.getElementById('submit-quiz-btn');
+            if (prog) prog.innerText = `Question ${currentQuestionIndex+1} of ${qCount}`;
+            if (prev) prev.disabled = currentQuestionIndex === 0;
+            if (currentQuestionIndex === qCount-1) { if(next) next.classList.add('hidden'); if(sub) sub.classList.remove('hidden'); }
+            else { if(next) next.classList.remove('hidden'); if(sub) sub.classList.add('hidden'); }
+
+            let html = '';
+            if (currentQuiz.type === 'multiple-choice') {
+                const letters = ['A','B','C','D'];
+                html = `<div class="choices-list">${q.choices.map((c,i)=>{
+                    const l = letters[i], sel = studentAnswers[currentQuestionIndex]===l;
+                    return `<button class="choice-btn ${sel?'selected':''}" onclick="selectChoice('${l}')"><span class="choice-label">${l}</span><span class="choice-text">${c||'(empty)'}</span></button>`;
+                }).join('')}</div>`;
+            } else if (currentQuiz.type === 'identification') {
+                const v = (studentAnswers[currentQuestionIndex]||'').replace(/"/g,'&quot;');
+                html = `<input type="text" class="answer-input-student" placeholder="Your Answer" value="${v}" oninput="studentAnswers[${currentQuestionIndex}]=this.value">`;
+            } else {
+                html = `<textarea class="essay-input" placeholder="Write your response here..." oninput="studentAnswers[${currentQuestionIndex}]=this.value">${studentAnswers[currentQuestionIndex]||''}</textarea>`;
+            }
+            container.innerHTML = `<div class="question-block"><h3>${q.question}</h3><div class="student-input-area">${html}</div></div>`;
+        }
+
+        function selectChoice(letter) { studentAnswers[currentQuestionIndex] = letter; renderQuizQuestion(); }
+        function changeQuestion(d) { currentQuestionIndex += d; renderQuizQuestion(); }
+        function submitQuiz() { if (confirm('Submit your quiz?')) showResults(); }
+
+        function showResults() {
+            const reviewList = document.getElementById('review-list');
+            let score = 0; const total = currentQuiz.questions.length;
+            reviewList.innerHTML = currentQuiz.questions.map((q,i) => {
+                const sa = studentAnswers[i]||'', ca = (q.answer||'').trim().toUpperCase();
+                let ok = false, dsa = sa||'(No answer)', dca = ca;
+                if (currentQuiz.type==='essay') { ok = sa.trim().length>0; }
+                else if (currentQuiz.type==='multiple-choice') {
+                    ok = sa.toUpperCase()===ca;
+                    const L=['A','B','C','D'], ci=L.indexOf(ca), si=L.indexOf(sa.toUpperCase());
+                    if (ci>=0&&q.choices[ci]) dca=`${ca}: ${q.choices[ci]}`;
+                    if (si>=0&&q.choices[si]) dsa=`${sa.toUpperCase()}: ${q.choices[si]}`;
+                } else { ok = sa.trim().toLowerCase()===ca.toLowerCase(); }
+                if (ok) score++;
+                return `<div class="review-item ${ok?'correct':'incorrect'}">
+                    <div class="review-item-header">
+                        <span class="q-label">Question ${i+1}</span>
+                        <div class="status-badge"><i data-lucide="${ok?'check':'x'}"></i><span>${ok?'CORRECT':'INCORRECT'}</span></div>
+                    </div>
+                    ${!ok?`<div class="review-item-details">
+                        <div><span class="correct-ans-label">YOUR ANSWER:</span> <span class="correct-ans-value" style="color:#ef4444">${dsa}</span></div>
+                        <div style="margin-top:0.4rem;"><span class="correct-ans-label">CORRECT ANSWER:</span> <span class="correct-ans-value">${dca}</span></div>
+                    </div>`:''}
+                </div>`;
+            }).join('');
+            const pct = total>0?Math.round(score/total*100):0;
+            document.getElementById('final-score').innerText = `${score}/${total}`;
+            document.getElementById('final-percentage').innerText = `${pct}%`;
+            let msg = 'Keep practicing!';
+            if (pct>=90) msg="Excellent! You're a master!";
+            else if(pct>=70) msg='Good job! You have a solid understanding.';
+            else if(pct>=50) msg='Good effort! Review the results to improve.';
+            document.getElementById('result-message').innerText = msg;
+            showView('results-view'); lucide.createIcons();
+        }
+
+        /* ════════════════════════════════════════
+           PRACTICE MODE LOGIC
+        ════════════════════════════════════════ */
+        const PM_Q = [
+            { q:'What is 8 × 7?',                         cat:'Math',    choices:['54','56','48','63'],                ans:1 },
+            { q:'Which planet is closest to the Sun?',     cat:'Science', choices:['Venus','Earth','Mercury','Mars'],   ans:2 },
+            { q:'Who painted the Mona Lisa?',              cat:'History', choices:['Picasso','Da Vinci','Raphael','Monet'], ans:1 },
+            { q:'What is the square root of 144?',         cat:'Math',    choices:['11','14','12','13'],                ans:2 },
+            { q:'What is the chemical formula for water?', cat:'Science', choices:['CO₂','O₂','H₂O','NaCl'],           ans:2 },
+        ];
+
+        let pmScores     = JSON.parse(localStorage.getItem('pm_scores')||'[]');
+        let pmQ=0, pmScore=0, pmStreak=0, pmBest=0, pmCorrect=0, pmAnswered=false, pmUser='';
+
+        function pmSwitchTab(tab) {
+            document.getElementById('pm-learn').style.display = tab==='learn'?'block':'none';
+            document.getElementById('pm-lb').style.display    = tab==='lb'?'block':'none';
+            document.getElementById('pm-tab-learn').classList.toggle('active', tab==='learn');
+            document.getElementById('pm-tab-lb').classList.toggle('active',    tab==='lb');
+            if (tab==='lb') pmRenderLB();
+        }
+
+        function pmStartQuiz() {
+            const u = document.getElementById('pm-username').value.trim();
+            if (!u) {
+                const el = document.getElementById('pm-username');
+                el.classList.add('error');
+                el.placeholder = 'Please enter a username!';
+                return;
+            }
+            pmUser = u; pmQ=0; pmScore=0; pmStreak=0; pmBest=0; pmCorrect=0; pmAnswered=false;
+            document.getElementById('pm-state-username').style.display='none';
+            document.getElementById('pm-state-quiz').style.display='block';
+            document.getElementById('pm-state-result').classList.remove('show');
+            pmLoadQ();
+        }
+
+        function pmLoadQ() {
+            pmAnswered = false;
+            const q = PM_Q[pmQ];
+            document.getElementById('pm-q-text').textContent  = q.q;
+            document.getElementById('pm-q-cat').textContent   = q.cat;
+            document.getElementById('pm-q-badge').textContent = 'Q'+(pmQ+1);
+            document.getElementById('pm-progress-fill').style.width = ((pmQ+1)/PM_Q.length*100)+'%';
+            document.getElementById('pm-progress-label').textContent = (pmQ+1)+' / '+PM_Q.length;
+            document.getElementById('pm-score-val').textContent  = pmScore+' pts';
+            document.getElementById('pm-streak-num').textContent = '🔥 '+pmStreak;
+            const fb = document.getElementById('pm-feedback');
+            fb.className='pm-feedback'; fb.innerHTML='';
+            const L=['A','B','C','D'];
+            document.getElementById('pm-choices').innerHTML = q.choices.map((c,i)=>
+                `<button class="pm-choice" onclick="pmAnswer(${i})">
+                    <span class="pm-choice-letter">${L[i]}</span>${c}
+                </button>`
+            ).join('');
+            document.getElementById('pm-skip-btn').textContent = pmQ===PM_Q.length-1?'Finish':'Skip →';
+        }
+
+        function pmAnswer(idx) {
+            if (pmAnswered) return;
+            pmAnswered = true;
+            const q = PM_Q[pmQ];
+            const btns = document.querySelectorAll('.pm-choice');
+            const fb   = document.getElementById('pm-feedback');
+            if (idx===q.ans) {
+                btns[idx].classList.add('correct-ans');
+                pmScore+=20; pmStreak++; pmCorrect++;
+                if (pmStreak>pmBest) pmBest=pmStreak;
+                fb.innerHTML='✓ Correct! +20 pts'; fb.className='pm-feedback show correct';
+            } else {
+                btns[idx].classList.add('wrong-ans');
+                btns[q.ans].classList.add('correct-ans');
+                pmStreak=0;
+                fb.innerHTML='✗ Incorrect — correct answer highlighted'; fb.className='pm-feedback show wrong';
+            }
+            document.getElementById('pm-score-val').textContent  = pmScore+' pts';
+            document.getElementById('pm-streak-num').textContent = '🔥 '+pmStreak;
+            document.getElementById('pm-skip-btn').textContent = pmQ===PM_Q.length-1?'See Results →':'Next →';
+        }
+
+        function pmNextQuestion() {
+            if (pmQ < PM_Q.length-1) { pmQ++; pmLoadQ(); }
+            else pmShowResult();
+        }
+
+        function pmShowResult() {
+            document.getElementById('pm-state-quiz').style.display='none';
+            document.getElementById('pm-state-result').classList.add('show');
+            const pct = Math.round(pmCorrect/PM_Q.length*100);
+            document.getElementById('pm-res-pct').textContent     = pct+'%';
+            document.getElementById('pm-res-score').textContent   = pmScore;
+            document.getElementById('pm-res-correct').textContent = pmCorrect+'/'+PM_Q.length;
+            document.getElementById('pm-res-streak').textContent  = pmBest;
+            if (pct>=80) document.getElementById('pm-res-title').textContent='Excellent work! 🎉';
+            else if(pct>=60) document.getElementById('pm-res-title').textContent='Nice effort! 👍';
+            else document.getElementById('pm-res-title').textContent='Keep practicing! 💪';
+            document.getElementById('pm-res-sub').textContent=`You scored ${pmScore} pts. Keep going to climb the ranks!`;
+            const ex = pmScores.findIndex(s=>s.name===pmUser);
+            if (ex>=0) { if(pmScore>pmScores[ex].score) pmScores[ex].score=pmScore; }
+            else pmScores.push({ name:pmUser, score:pmScore, initials:pmUser.slice(0,2).toUpperCase() });
+            pmScores.sort((a,b)=>b.score-a.score);
+            localStorage.setItem('pm_scores', JSON.stringify(pmScores));
+        }
+
+        function pmResetQuiz() {
+            document.getElementById('pm-state-result').classList.remove('show');
+            document.getElementById('pm-state-username').style.display='block';
+            const el = document.getElementById('pm-username');
+            el.value=''; el.classList.remove('error'); el.placeholder='e.g. alex_learns';
+        }
+
+        function pmRenderLB() {
+            const sorted = [...pmScores].sort((a,b)=>b.score-a.score);
+            const podEl  = document.getElementById('pm-podium');
+            const rowsEl = document.getElementById('pm-lb-rows');
+            const lbl    = document.getElementById('pm-lb-rest-label');
+
+            if (!sorted.length) {
+                podEl.innerHTML='<div class="pm-empty-lb">No scores yet — be the first!</div>';
+                rowsEl.innerHTML=''; lbl.style.display='none'; return;
+            }
+
+            const top3      = sorted.slice(0,3);
+            const cls       = ['first','second','third'];
+            const badges    = ['1st','2nd','3rd'];
+            // arrange: 2nd | 1st | 3rd
+            const order     = top3.length>=3?[1,0,2]:(top3.length===2?[1,0]:[0]);
+
+            podEl.innerHTML = order.map(i=>`
+                <div class="pm-pod ${cls[i]}">
+                    ${cls[i]==='first'?'<div class="pm-pod-crown">👑</div>':''}
+                    <div class="pm-pod-avatar">${top3[i].initials}</div>
+                    <div class="pm-pod-name">${top3[i].name}</div>
+                    <div class="pm-pod-score">${top3[i].score} pts</div>
+                    <div class="pm-pod-badge">${badges[i]}</div>
+                </div>`).join('');
+
+            const rest = sorted.slice(3,13);
+            if (rest.length) {
+                lbl.style.display='block';
+                rowsEl.innerHTML = rest.map((s,i)=>`
+                    <div class="pm-lb-row ${s.name===pmUser?'me':''}">
+                        <div class="pm-lb-rank">${i+4}</div>
+                        <div class="pm-lb-avatar">${s.initials}</div>
+                        <div>
+                            <div class="pm-lb-name">${s.name}${s.name===pmUser?' (you)':''}</div>
+                            <div class="pm-lb-sub">Score</div>
+                        </div>
+                        <div class="pm-lb-score">${s.score}</div>
+                    </div>`).join('');
+            } else { lbl.style.display='none'; rowsEl.innerHTML=''; }
+        }
+
+        /* init */
+        lucide.createIcons();
+        addQuestion();
+    </script>
+</body>
+</html>
