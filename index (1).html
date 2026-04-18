@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     /* ═══════════════════════════════════════
        DESIGN TOKENS
@@ -1426,14 +1427,14 @@
         <span class="card-cta">Start Learning →</span>
       </button>
 
-      <button class="mode-card student" onclick="showView('student-view')">
+      <button class="mode-card student" onclick="openStudentDeck()">
         <div class="card-icon"><i data-lucide="graduation-cap"></i></div>
         <h3>Student Deck</h3>
         <p>Enter a quiz code to take your teacher's quiz</p>
         <span class="card-cta">Enter Code →</span>
       </button>
 
-      <button class="mode-card teacher" onclick="showView('teacher-dashboard')">
+      <button class="mode-card teacher" onclick="openTeacherDashboard()">
         <div class="card-icon"><i data-lucide="layout-dashboard"></i></div>
         <h3>Teacher Dashboard</h3>
         <p>Create quizzes and generate student codes</p>
@@ -1547,23 +1548,36 @@
     </nav>
 
     <div class="section-header">
-      <h1>Enter Quiz Code</h1>
-      <p>Enter the 6-character code provided by your teacher</p>
+      <h1>Student Deck</h1>
+      <p>Enter your details and quiz code to get started.</p>
     </div>
 
-    <div class="code-entry-card">
-      <input
-        type="text"
-        id="student-quiz-code"
-        class="code-input-large"
-        placeholder="XXXXXX"
-        maxlength="6"
-        oninput="this.value=this.value.toUpperCase()"
-        onkeydown="if(event.key==='Enter') joinQuiz()"
-      />
-      <div id="code-error-msg" class="error-msg">⚠ Invalid quiz code. Please check and try again.</div>
-      <button class="btn-primary" style="width:100%;justify-content:center;" onclick="joinQuiz()">
-        <i data-lucide="play-circle"></i> Join Quiz
+    <div id="student-info-step" class="code-entry-card">
+      <div class="form-group">
+        <label for="student-fullname">Full Name</label>
+        <input type="text" id="student-fullname" class="form-input" placeholder="e.g. Jordan Lee" />
+      </div>
+      <div class="form-group">
+        <label for="student-year">Year</label>
+        <input type="text" id="student-year" class="form-input" placeholder="e.g. 11" />
+      </div>
+      <div class="form-group">
+        <label for="student-block">Block</label>
+        <input type="text" id="student-block" class="form-input" placeholder="e.g. A" />
+      </div>
+      <div class="form-group">
+        <label for="student-quiz-code">Quiz Code</label>
+        <input
+          type="text"
+          id="student-quiz-code"
+          class="code-input-large"
+          placeholder="Enter code"
+          maxlength="6"
+        />
+      </div>
+      <div id="student-info-error" class="error-msg">⚠ Please complete all fields before continuing.</div>
+      <button id="student-info-next-btn" class="btn-primary" type="button" style="width:100%;justify-content:center;" onclick="joinQuiz()">
+        <i data-lucide="arrow-right"></i> Continue
       </button>
     </div>
   </div>
@@ -1639,6 +1653,9 @@
     </div>
 
     <div class="results-actions">
+      <button class="btn-secondary" onclick="downloadReport()">
+        <i data-lucide="download"></i> Download Report
+      </button>
       <button class="btn-secondary" onclick="showView('student-view')">
         <i data-lucide="refresh-ccw"></i> Try Another Quiz
       </button>
@@ -1787,6 +1804,42 @@ function toast(msg, duration = 2000) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), duration);
+}
+
+async function isOnline() {
+  if (!navigator.onLine) return false;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    await fetch('https://www.gstatic.com/generate_204', {
+      method: 'GET',
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function openStudentDeck() {
+  const online = await isOnline();
+  if (!online) {
+    toast('No internet connection. Try again.');
+    return;
+  }
+  showView('student-view');
+}
+
+async function openTeacherDashboard() {
+  const online = await isOnline();
+  if (!online) {
+    toast('No internet connection. Try again.');
+    return;
+  }
+  showView('teacher-dashboard');
 }
 
 /** Navigate between views */
@@ -2051,17 +2104,43 @@ let currentQuiz          = null;
 let shuffledQuestions    = [];    // randomized order per session
 let currentQuestionIndex = 0;
 let studentAnswers       = [];
+let studentProfile       = { name: '', year: '', block: '' };
 let quizTimerInterval    = null;
 let quizSecondsLeft      = 0;
 
 /* Join quiz by code */
 function joinQuiz() {
-  const codeEl = document.getElementById('student-quiz-code');
-  const errEl  = document.getElementById('code-error-msg');
-  const code   = codeEl.value.trim().toUpperCase();
+  const nameEl  = document.getElementById('student-fullname');
+  const yearEl  = document.getElementById('student-year');
+  const blockEl = document.getElementById('student-block');
+  const codeEl  = document.getElementById('student-quiz-code');
+  const errEl   = document.getElementById('student-info-error');
+  const name    = nameEl.value.trim();
+  const year    = yearEl.value.trim();
+  const block   = blockEl.value.trim();
+  const code    = codeEl.value.trim().toUpperCase();
 
-  codeEl.classList.remove('error');
   errEl.classList.remove('show');
+  nameEl.classList.remove('error');
+  yearEl.classList.remove('error');
+  blockEl.classList.remove('error');
+  codeEl.classList.remove('error');
+
+  if (!navigator.onLine) {
+    codeEl.classList.add('error');
+    errEl.textContent = 'No internet connection. Try again.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  if (!name || !year || !block) {
+    if (!name) nameEl.classList.add('error');
+    if (!year) yearEl.classList.add('error');
+    if (!block) blockEl.classList.add('error');
+    errEl.textContent = '⚠ Please complete all fields before continuing.';
+    errEl.classList.add('show');
+    return;
+  }
 
   if (!code) {
     codeEl.classList.add('error');
@@ -2077,6 +2156,8 @@ function joinQuiz() {
     errEl.classList.add('show');
     return;
   }
+
+  studentProfile = { name, year, block };
 
   // Reset state
   currentQuiz          = quiz;
@@ -2536,6 +2617,80 @@ function pmRenderLeaderboard() {
     lblEl.style.display  = 'none';
     rowsEl.innerHTML = '';
   }
+}
+
+function downloadReport() {
+  const jsPDFConstructor = window.jspdf?.jsPDF || window.jspdf?.default?.jsPDF;
+  if (!jsPDFConstructor) {
+    toast('Unable to generate report. Try again.');
+    return;
+  }
+
+  if (!currentQuiz) {
+    toast('No quiz data available.');
+    return;
+  }
+
+  const doc = new jsPDFConstructor();
+  const profile = studentProfile;
+  const quiz = currentQuiz;
+  const answers = studentAnswers;
+  const questions = shuffledQuestions;
+
+  doc.setFontSize(18);
+  doc.text('Quiz Report', 20, 20);
+
+  const takenDate = new Date().toLocaleDateString();
+
+  doc.setFontSize(12);
+  doc.text(`Name: ${profile.name}`, 20, 40);
+  doc.text(`Year: ${profile.year}`, 20, 50);
+  doc.text(`Block: ${profile.block}`, 20, 60);
+  doc.text(`Quiz: ${quiz.title}`, 20, 70);
+  doc.text(`Date Taken: ${takenDate}`, 20, 80);
+
+  const results = questions.map((q, i) => {
+    const sa = answers[i] || '';
+    const ca = q.answer;
+    let correct = false;
+    if (quiz.type === 'multiple-choice') {
+      correct = sa.toUpperCase() === ca;
+    } else if (quiz.type === 'identification') {
+      correct = sa.toLowerCase() === ca.toLowerCase();
+    } else {
+      correct = sa.length > 0; // essay
+    }
+    return { q, sa, ca, correct };
+  });
+
+  const score = results.filter((item) => item.correct).length;
+  let y = 100;
+  doc.setFontSize(14);
+  doc.text(`Final Score: ${score}/${questions.length}`, 20, y);
+  y += 15;
+
+  results.forEach(({ q, sa, ca, correct }, i) => {
+    doc.setFontSize(10);
+    doc.text(`Q${i + 1}: ${q.question}`, 20, y);
+    y += 10;
+    if (quiz.type === 'multiple-choice') {
+      const choices = q.choices.map((c, idx) => `${String.fromCharCode(65 + idx)}: ${c}`).join(', ');
+      doc.text(`Choices: ${choices}`, 20, y);
+      y += 10;
+    }
+    doc.text(`Your Answer: ${sa || '(No answer)'}`, 20, y);
+    y += 10;
+    doc.text(`Correct Answer: ${ca || '(N/A)'}`, 20, y);
+    y += 10;
+    doc.text(`Status: ${correct ? 'Correct' : 'Incorrect'}`, 20, y);
+    y += 15;
+    if (y > 260) {
+      doc.addPage();
+      y = 20;
+    }
+  });
+
+  doc.save('quiz-report.pdf');
 }
 
 /* ════════════════════════════════════════
