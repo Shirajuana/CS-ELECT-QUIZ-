@@ -217,6 +217,23 @@ function handleStudentViewEntry() {
   showStudentInfoStep();
 }
 
+function requireOnline(viewId) {
+  if (!navigator.onLine) {
+    toast('No internet connection. Try again.');
+    return false;
+  }
+  showView(viewId);
+  return true;
+}
+
+function openStudentDeck() {
+  requireOnline('student-view');
+}
+
+function openTeacherDashboard() {
+  requireOnline('teacher-dashboard');
+}
+
 function handleTypeChange() {
   selectors.questionsContainer.innerHTML = '';
   addQuestion();
@@ -615,6 +632,76 @@ function showResults() {
   selectors.reviewList.innerHTML = reviewHTML;
   showView('results-view');
   lucide.createIcons();
+}
+
+function downloadReport() {
+  const jsPDFConstructor = window.jspdf?.jsPDF || window.jspdf?.default?.jsPDF;
+  if (!jsPDFConstructor) {
+    toast('Unable to generate report. Try again.');
+    return;
+  }
+  if (!state.currentQuiz) {
+    toast('No quiz data available.');
+    return;
+  }
+
+  const doc = new jsPDFConstructor();
+  const profile = state.studentProfile;
+  const quiz = state.currentQuiz;
+  const answers = state.studentAnswers;
+  const questions = state.shuffledQuestions;
+  const takenDate = new Date().toLocaleDateString();
+
+  const score = questions.reduce((sum, q, idx) => {
+    const sa = (answers[idx] || '').trim();
+    const ca = (q.answer || '').trim().toUpperCase();
+    if (quiz.type === 'multiple-choice') return sum + (sa.toUpperCase() === ca ? 1 : 0);
+    if (quiz.type === 'identification') return sum + (sa.toLowerCase() === ca.toLowerCase() ? 1 : 0);
+    return sum + (sa.length > 0 ? 1 : 0);
+  }, 0);
+
+  doc.setFontSize(18);
+  doc.text('Quiz Report', 20, 20);
+  doc.setFontSize(12);
+  doc.text(`Name: ${profile.name}`, 20, 35);
+  doc.text(`Year: ${profile.year}`, 20, 45);
+  doc.text(`Block: ${profile.block}`, 20, 55);
+  doc.text(`Quiz: ${quiz.title}`, 20, 65);
+  doc.text(`Date Taken: ${takenDate}`, 20, 75);
+  doc.text(`Final Score: ${score}/${questions.length}`, 20, 85);
+
+  let y = 100;
+  questions.forEach((question, idx) => {
+    const studentAnswer = (answers[idx] || '').trim();
+    const correctAnswer = (question.answer || '').trim();
+    const isCorrect = quiz.type === 'essay'
+      ? studentAnswer.length > 0
+      : quiz.type === 'identification'
+        ? studentAnswer.toLowerCase() === correctAnswer.toLowerCase()
+        : studentAnswer.toUpperCase() === correctAnswer.toUpperCase();
+
+    doc.setFontSize(11);
+    doc.text(`Q${idx + 1}: ${question.question}`, 20, y);
+    y += 8;
+    if (quiz.type === 'multiple-choice') {
+      const choices = question.choices.map((choice, index) => `${String.fromCharCode(65 + index)}: ${choice}`).join(', ');
+      doc.text(`Choices: ${choices}`, 20, y);
+      y += 8;
+    }
+    doc.text(`Your Answer: ${studentAnswer || '(No answer)'}`, 20, y);
+    y += 8;
+    doc.text(`Correct Answer: ${correctAnswer || '(N/A)'}`, 20, y);
+    y += 8;
+    doc.text(`Status: ${isCorrect ? 'Correct' : 'Incorrect'}`, 20, y);
+    y += 12;
+
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+  });
+
+  doc.save('quiz-report.pdf');
 }
 
 function pmSwitchTab(tab) {
