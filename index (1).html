@@ -1792,11 +1792,23 @@
       font-weight: 600;
     }
 
+    .pm-rank-badge {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #fff;
+      font-size: 1.6rem;
+      font-weight: 900;
+      padding: 6px 20px;
+      border-radius: 40px;
+      display: inline-block;
+      margin: 8px auto 4px;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+      letter-spacing: 1px;
+    }
+
     .pm-result-stats {
       display: flex;
       gap: 10px;
-      width: 100%;
-      margin-bottom: 20px;
+      margin-top: 8px;
     }
 
     .pm-stat-box {
@@ -2531,6 +2543,7 @@
             </div>
             <div class="pm-result-title" id="pm-res-title">Well done!</div>
             <div class="pm-result-sub" id="pm-res-sub">You scored 0 pts.</div>
+            <div class="pm-rank-badge" id="pm-res-rank">--</div>
             <div class="pm-result-stats">
               <div class="pm-stat-box hl">
                 <div class="sv" id="pm-res-score">0</div>
@@ -2638,9 +2651,9 @@
       if (viewId === 'teacher-dashboard') { editingIndex = -1; renderQuizzes(); }
       if (viewId === 'create-quiz-view' && editingIndex === -1) resetQuizForm();
       if (viewId === 'practice-view') {
-        document.getElementById('pm-state-username').style.display = 'block';
-        document.getElementById('pm-state-quiz').style.display = 'none';
-        document.getElementById('pm-state-result').classList.remove('show');
+        pmResetQuiz();
+        document.getElementById('pm-q-count-label').textContent = '15 total';
+        pmSwitchTab('learn');
       }
 
       lucide.createIcons();
@@ -3140,67 +3153,36 @@
     }
 
     /* ════════════════════════════════════════
-       PRACTICE MODE — CS QUESTIONS
+       PRACTICE MODE — CS QUESTIONS (Multiplayer via API)
     ════════════════════════════════════════ */
-    const PM_QUESTIONS_BANK = [
-      // Algorithms
-      { q: 'What is the time complexity of binary search?', cat: 'Algorithms', choices: ['O(n)', 'O(log n)', 'O(n²)', 'O(1)'], ans: 1 },
-      { q: 'Which sorting algorithm has the best worst-case time complexity?', cat: 'Algorithms', choices: ['Quick Sort', 'Bubble Sort', 'Merge Sort', 'Selection Sort'], ans: 2 },
-      { q: 'What does "Big O notation" describe?', cat: 'Algorithms', choices: ['Memory usage', 'Code readability', 'Algorithm performance as input grows', 'Number of bugs'], ans: 2 },
-      { q: 'Which algorithm is used to find the shortest path in a graph?', cat: 'Algorithms', choices: ['DFS', 'BFS', "Dijkstra's", 'Bubble Sort'], ans: 2 },
-
-      // Data Structures
-      { q: 'Which data structure follows LIFO (Last In, First Out)?', cat: 'Data Structures', choices: ['Queue', 'Stack', 'Linked List', 'Tree'], ans: 1 },
-      { q: 'What is the average time complexity for lookup in a hash table?', cat: 'Data Structures', choices: ['O(n)', 'O(log n)', 'O(n²)', 'O(1)'], ans: 3 },
-      { q: 'In a binary search tree, where is the smallest value?', cat: 'Data Structures', choices: ['Root', 'Right-most node', 'Left-most node', 'Any leaf node'], ans: 2 },
-      { q: 'Which data structure is used to implement a priority queue efficiently?', cat: 'Data Structures', choices: ['Array', 'Linked List', 'Heap', 'Hash Table'], ans: 2 },
-
-      // Databases
-      { q: 'What does SQL stand for?', cat: 'Databases', choices: ['Structured Query Language', 'Simple Queue Logic', 'Sequential Query List', 'Standard Query Logic'], ans: 0 },
-      { q: 'Which SQL clause filters rows after grouping?', cat: 'Databases', choices: ['WHERE', 'HAVING', 'GROUP BY', 'ORDER BY'], ans: 1 },
-      { q: 'What is a PRIMARY KEY in a relational database?', cat: 'Databases', choices: ['A foreign reference', 'A unique identifier for a row', 'An index on all columns', 'A encrypted password'], ans: 1 },
-      { q: 'What type of join returns all rows from both tables, with NULLs where no match exists?', cat: 'Databases', choices: ['INNER JOIN', 'LEFT JOIN', 'CROSS JOIN', 'FULL OUTER JOIN'], ans: 3 },
-
-      // Networking
-      { q: 'What does HTTP stand for?', cat: 'Networking', choices: ['HyperText Transfer Protocol', 'High Transfer Text Process', 'Hyper Terminal Transfer Program', 'Host Text Tunnel Protocol'], ans: 0 },
-      { q: 'Which layer of the OSI model handles IP addressing?', cat: 'Networking', choices: ['Data Link', 'Transport', 'Network', 'Application'], ans: 2 },
-      { q: 'What port does HTTPS typically use?', cat: 'Networking', choices: ['80', '21', '443', '8080'], ans: 2 },
-      { q: 'What does DNS stand for?', cat: 'Networking', choices: ['Data Network System', 'Domain Name System', 'Dynamic Node Service', 'Distributed Node Server'], ans: 1 },
-
-      // Operating Systems
-      { q: 'What is a deadlock in an operating system?', cat: 'Operating Systems', choices: ['A crashed process', 'Two processes waiting on each other indefinitely', 'An infinite loop', 'A memory leak'], ans: 1 },
-      { q: 'What is virtual memory?', cat: 'Operating Systems', choices: ['RAM inside the GPU', 'Disk space used as extra RAM', 'A type of cache', 'Memory in a virtual machine'], ans: 1 },
-      { q: 'Which scheduling algorithm gives CPU time in a round-robin fashion?', cat: 'Operating Systems', choices: ['FCFS', 'SJF', 'Priority Scheduling', 'Round Robin'], ans: 3 },
-
-      // Software Engineering
-      { q: 'What does the "S" in SOLID principles stand for?', cat: 'Software Engineering', choices: ['Separation', 'Single Responsibility', 'Scalability', 'Synchronization'], ans: 1 },
-      { q: 'What is the purpose of version control (e.g., Git)?', cat: 'Software Engineering', choices: ['Running code faster', 'Tracking and managing code changes', 'Compiling programs', 'Encrypting source code'], ans: 1 },
-      { q: 'What is a REST API?', cat: 'Software Engineering', choices: ['A sleep function', 'A relational entity syntax template', 'A stateless architectural style for web services', 'A UI framework'], ans: 2 },
-
-      // Programming Languages
-      { q: 'What does OOP stand for?', cat: 'Programming Languages', choices: ['Object-Oriented Programming', 'Open Operand Process', 'Output Oriented Pipeline', 'Operator Overload Paradigm'], ans: 0 },
-      { q: 'In Python, what keyword is used to define a function?', cat: 'Programming Languages', choices: ['func', 'function', 'def', 'lambda'], ans: 2 },
-      { q: 'What is the difference between a compiled and interpreted language?', cat: 'Programming Languages', choices: ['No difference', 'Compiled translates to machine code ahead of time; interpreted runs line-by-line', 'Interpreted is faster', 'Compiled runs in a browser'], ans: 1 },
-    ];
-
-    // Shuffle and pick 15 for this session
-    let PM_Q = shuffle(PM_QUESTIONS_BANK).slice(0, 15);
-    let pmScores = JSON.parse(localStorage.getItem('pm_scores') || '[]');
+    let PM_Q = [];
+    let pmScores = [];
     let pmQ = 0, pmScore = 0, pmStreak = 0, pmBest = 0, pmCorrect = 0;
     let pmAnswered = false, pmUser = '';
     let pmTimerInterval = null, pmSecondsLeft = 20;
+    let pmLoading = false;
 
-    document.getElementById('pm-q-count-label').textContent = `${PM_Q.length} total`;
+    async function pmApi(method, path, body) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      if (!res.ok) throw new Error('API error');
+      return res.json();
+    }
 
-    function pmSwitchTab(tab) {
+    async function pmSwitchTab(tab) {
       document.getElementById('pm-learn').style.display = tab === 'learn' ? 'block' : 'none';
       document.getElementById('pm-lb').style.display = tab === 'lb' ? 'block' : 'none';
       document.getElementById('pm-tab-learn').classList.toggle('active', tab === 'learn');
       document.getElementById('pm-tab-lb').classList.toggle('active', tab === 'lb');
-      if (tab === 'lb') pmRenderLeaderboard();
+      if (tab === 'lb') {
+        document.getElementById('pm-podium').innerHTML = '<div class="pm-empty-lb">Loading leaderboard...</div>';
+        document.getElementById('pm-lb-rows').innerHTML = '';
+        await pmRenderLeaderboard();
+      }
     }
 
-    function pmStartQuiz() {
+    async function pmStartQuiz() {
       const u = document.getElementById('pm-username').value.trim();
       if (!u) {
         const el = document.getElementById('pm-username');
@@ -3208,6 +3190,8 @@
         el.placeholder = 'Please enter a username first!';
         return;
       }
+      if (pmLoading) return;
+      pmLoading = true;
       pmUser = u;
       pmQ = 0;
       pmScore = 0;
@@ -3215,12 +3199,24 @@
       pmBest = 0;
       pmCorrect = 0;
       pmAnswered = false;
-      PM_Q = shuffle(PM_QUESTIONS_BANK).slice(0, 15); // re-shuffle each session
 
       document.getElementById('pm-state-username').style.display = 'none';
       document.getElementById('pm-state-quiz').style.display = 'block';
       document.getElementById('pm-state-result').classList.remove('show');
-      pmLoadQuestion();
+      document.getElementById('pm-q-text').textContent = 'Loading questions...';
+      document.getElementById('pm-choices').innerHTML = '';
+      document.getElementById('pm-skip-btn').disabled = true;
+
+      try {
+        PM_Q = await pmApi('GET', '/api/questions');
+        document.getElementById('pm-skip-btn').disabled = false;
+        document.getElementById('pm-q-count-label').textContent = `${PM_Q.length} total`;
+        pmLoadQuestion();
+      } catch (e) {
+        toast('Failed to load questions. Check your connection.');
+        pmResetQuiz();
+      }
+      pmLoading = false;
     }
 
     function pmLoadQuestion() {
@@ -3322,7 +3318,7 @@
       else pmShowResult();
     }
 
-    function pmShowResult() {
+    async function pmShowResult() {
       clearInterval(pmTimerInterval);
       document.getElementById('pm-state-quiz').style.display = 'none';
       document.getElementById('pm-state-result').classList.add('show');
@@ -3333,21 +3329,30 @@
       document.getElementById('pm-res-correct').textContent = `${pmCorrect}/${PM_Q.length}`;
       document.getElementById('pm-res-streak').textContent = pmBest;
 
-      if (pct >= 80) document.getElementById('pm-res-title').textContent = 'Excellent work! 🎉';
-      else if (pct >= 60) document.getElementById('pm-res-title').textContent = 'Nice effort! 👍';
-      else document.getElementById('pm-res-title').textContent = 'Keep practicing! 💪';
+      if (pct >= 80) document.getElementById('pm-res-title').textContent = '🏆 Excellent work!';
+      else if (pct >= 60) document.getElementById('pm-res-title').textContent = '👍 Nice effort!';
+      else document.getElementById('pm-res-title').textContent = '💪 Keep practicing!';
 
-      document.getElementById('pm-res-sub').textContent = `You scored ${pmScore} pts with a best streak of ${pmBest}. Keep going!`;
-
-      // Save to leaderboard (keep best score)
-      const existing = pmScores.findIndex(s => s.name === pmUser);
-      if (existing >= 0) {
-        if (pmScore > pmScores[existing].score) pmScores[existing].score = pmScore;
-      } else {
-        pmScores.push({ name: pmUser, score: pmScore, initials: pmUser.slice(0, 2).toUpperCase() });
+      // Submit to server
+      let rank = '?';
+      try {
+        const res = await pmApi('POST', '/api/score', {
+          name: pmUser,
+          score: pmScore,
+          initials: pmUser.slice(0, 2).toUpperCase(),
+          correct: pmCorrect,
+          total: PM_Q.length,
+          streak: pmBest
+        });
+        rank = res.rank;
+      } catch (e) {
+        // Offline fallback — still show results
       }
-      pmScores.sort((a, b) => b.score - a.score);
-      localStorage.setItem('pm_scores', JSON.stringify(pmScores));
+
+      const rankText = rank === 1 ? '🥇 You are #1!' : `You placed #${rank} on the leaderboard!`;
+      document.getElementById('pm-res-sub').textContent =
+        `You scored ${pmScore} pts with a best streak of ${pmBest}. ${rank > 0 ? rankText : ''}`;
+      document.getElementById('pm-res-rank').textContent = rank > 0 ? `#${rank}` : '--';
     }
 
     function pmResetQuiz() {
@@ -3357,22 +3362,36 @@
       el.value = '';
       el.classList.remove('pm-error');
       el.placeholder = 'e.g. alex_learns';
+      PM_Q = [];
+      pmScore = 0;
+      pmStreak = 0;
+      pmBest = 0;
+      pmCorrect = 0;
+      pmAnswered = false;
     }
 
-    function pmRenderLeaderboard() {
-      const sorted = [...pmScores].sort((a, b) => b.score - a.score);
+    async function pmRenderLeaderboard() {
       const podEl = document.getElementById('pm-podium');
       const rowsEl = document.getElementById('pm-lb-rows');
       const lblEl = document.getElementById('pm-lb-rest-label');
 
-      if (!sorted.length) {
+      try {
+        pmScores = await pmApi('GET', '/api/leaderboard');
+      } catch (e) {
+        podEl.innerHTML = '<div class="pm-empty-lb">Could not load leaderboard.</div>';
+        rowsEl.innerHTML = '';
+        lblEl.style.display = 'none';
+        return;
+      }
+
+      if (!pmScores.length) {
         podEl.innerHTML = '<div class="pm-empty-lb">No scores yet — be the first!</div>';
         rowsEl.innerHTML = '';
         lblEl.style.display = 'none';
         return;
       }
 
-      const top3 = sorted.slice(0, 3);
+      const top3 = pmScores.slice(0, 3);
       const cls = ['first', 'second', 'third'];
       const labels = ['1st', '2nd', '3rd'];
       const order = top3.length >= 3 ? [1, 0, 2] : (top3.length === 2 ? [1, 0] : [0]);
@@ -3386,9 +3405,10 @@
       <div class="pm-pod-badge">${labels[i]}</div>
     </div>`).join('');
 
-      const rest = sorted.slice(3, 13);
+      const rest = pmScores.slice(3, 13);
       if (rest.length) {
         lblEl.style.display = 'block';
+        lblEl.textContent = `Rankings #4–#${Math.min(pmScores.length, 13)}`;
         rowsEl.innerHTML = rest.map((s, i) => `
       <div class="pm-lb-row ${s.name === pmUser ? 'me' : ''}">
         <div class="pm-lb-rank">${i + 4}</div>
