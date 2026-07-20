@@ -3170,6 +3170,13 @@
       return res.json();
     }
 
+    function shuffleQuestionChoices(question) {
+      const order = shuffle(question.choices.map((_, i) => i));
+      const displayChoices = order.map((index) => question.choices[index]);
+      const displayAns = order.indexOf(question.ans);
+      return { ...question, displayChoices, displayAns };
+    }
+
     async function pmSwitchTab(tab) {
       document.getElementById('pm-learn').style.display = tab === 'learn' ? 'block' : 'none';
       document.getElementById('pm-lb').style.display = tab === 'lb' ? 'block' : 'none';
@@ -3208,7 +3215,8 @@
       document.getElementById('pm-skip-btn').disabled = true;
 
       try {
-        PM_Q = await pmApi('GET', '/api/questions');
+        const questions = await pmApi('GET', '/api/questions');
+        PM_Q = questions.map(shuffleQuestionChoices);
         document.getElementById('pm-skip-btn').disabled = false;
         document.getElementById('pm-q-count-label').textContent = `${PM_Q.length} total`;
         pmLoadQuestion();
@@ -3225,6 +3233,9 @@
       pmSecondsLeft = 20;
 
       const q = PM_Q[pmQ];
+      const choices = q.displayChoices || q.choices;
+      const correctIndex = q.displayAns ?? q.ans;
+
       document.getElementById('pm-q-text').textContent = q.q;
       document.getElementById('pm-q-cat').textContent = q.cat;
       document.getElementById('pm-q-badge').textContent = `Q${pmQ + 1}`;
@@ -3238,7 +3249,7 @@
       fb.textContent = '';
 
       const L = ['A', 'B', 'C', 'D'];
-      document.getElementById('pm-choices').innerHTML = q.choices.map((c, i) =>
+      document.getElementById('pm-choices').innerHTML = choices.map((c, i) =>
         `<button class="pm-choice" onclick="pmAnswer(${i})">
       <span class="pm-choice-letter">${L[i]}</span>${c}
     </button>`
@@ -3257,9 +3268,8 @@
             // Time ran out — mark as wrong
             pmAnswered = true;
             pmStreak = 0;
-            const q2 = PM_Q[pmQ];
             const btns = document.querySelectorAll('.pm-choice');
-            if (btns[q2.ans]) btns[q2.ans].classList.add('correct-ans');
+            if (btns[correctIndex]) btns[correctIndex].classList.add('correct-ans');
             btns.forEach(b => b.disabled = true);
             const fb2 = document.getElementById('pm-feedback');
             fb2.innerHTML = '⏱ Time\'s up! Correct answer shown.';
@@ -3287,12 +3297,13 @@
       clearInterval(pmTimerInterval);
 
       const q = PM_Q[pmQ];
+      const correctIndex = q.displayAns ?? q.ans;
       const btns = document.querySelectorAll('.pm-choice');
       const fb = document.getElementById('pm-feedback');
 
       btns.forEach(b => b.disabled = true);
 
-      if (idx === q.ans) {
+      if (idx === correctIndex) {
         btns[idx].classList.add('correct-ans');
         pmScore += 20;
         pmStreak++;
@@ -3302,7 +3313,7 @@
         fb.className = 'pm-feedback show correct';
       } else {
         btns[idx].classList.add('wrong-ans');
-        btns[q.ans].classList.add('correct-ans');
+        if (btns[correctIndex]) btns[correctIndex].classList.add('correct-ans');
         pmStreak = 0;
         fb.innerHTML = '✗ Incorrect — correct answer highlighted';
         fb.className = 'pm-feedback show wrong';
@@ -3333,8 +3344,7 @@
       else if (pct >= 60) document.getElementById('pm-res-title').textContent = '👍 Nice effort!';
       else document.getElementById('pm-res-title').textContent = '💪 Keep practicing!';
 
-      // Submit to server
-      let rank = '?';
+      let rank = null;
       try {
         const res = await pmApi('POST', '/api/score', {
           name: pmUser,
@@ -3346,13 +3356,20 @@
         });
         rank = res.rank;
       } catch (e) {
-        // Offline fallback — still show results
+        rank = pmLocalRank();
       }
 
       const rankText = rank === 1 ? '🥇 You are #1!' : `You placed #${rank} on the leaderboard!`;
       document.getElementById('pm-res-sub').textContent =
-        `You scored ${pmScore} pts with a best streak of ${pmBest}. ${rank > 0 ? rankText : ''}`;
-      document.getElementById('pm-res-rank').textContent = rank > 0 ? `#${rank}` : '--';
+        `You scored ${pmScore} pts with a best streak of ${pmBest}. ${rank ? rankText : ''}`;
+      document.getElementById('pm-res-rank').textContent = rank ? `#${rank}` : '--';
+    }
+
+    function pmLocalRank() {
+      const stored = JSON.parse(localStorage.getItem('pm_scores') || '[]');
+      const scores = [...stored, { name: pmUser, score: pmScore }];
+      scores.sort((a, b) => b.score - a.score);
+      return scores.findIndex((entry) => entry.name === pmUser && entry.score === pmScore) + 1 || null;
     }
 
     function pmResetQuiz() {
@@ -3378,11 +3395,10 @@
       try {
         pmScores = await pmApi('GET', '/api/leaderboard');
       } catch (e) {
-        podEl.innerHTML = '<div class="pm-empty-lb">Could not load leaderboard.</div>';
-        rowsEl.innerHTML = '';
-        lblEl.style.display = 'none';
-        return;
+        pmScores = JSON.parse(localStorage.getItem('pm_scores') || '[]');
       }
+
+      pmScores.sort((a, b) => b.score - a.score);
 
       if (!pmScores.length) {
         podEl.innerHTML = '<div class="pm-empty-lb">No scores yet — be the first!</div>';
