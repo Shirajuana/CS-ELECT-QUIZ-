@@ -2692,7 +2692,7 @@
       if (target) target.classList.remove('hidden');
 
       // Side-effects per view
-      if (viewId === 'teacher-dashboard') { editingIndex = -1; renderQuizzes(); }
+      if (viewId === 'teacher-dashboard') { editingIndex = -1; loadQuizzesFromServer(); }
       if (viewId === 'create-quiz-view' && editingIndex === -1) resetQuizForm();
       if (viewId === 'practice-view') {
         pmResetQuiz();
@@ -2707,16 +2707,20 @@
     /* ════════════════════════════════════════
        TEACHER — STATE
     ════════════════════════════════════════ */
-    let quizzes = JSON.parse(localStorage.getItem('quizzes') || '[]');
+    let quizzes = [];
     let editingIndex = -1;
 
-    function persistQuizzes() {
-      localStorage.setItem('quizzes', JSON.stringify(quizzes));
+    async function api(method, path, body) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      if (!res.ok) throw new Error('API error');
+      return res.json();
     }
 
-    /** Generate a random 6-char alphanumeric code */
-    function generateCode() {
-      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    async function loadQuizzesFromServer() {
+      quizzes = await api('GET', '/api/quizzes');
+      renderQuizzes();
     }
 
     /* ════════════════════════════════════════
@@ -2796,7 +2800,7 @@
       });
     }
 
-    function saveQuiz() {
+    async function saveQuiz() {
       const title = document.getElementById('quiz-title').value.trim();
       const type = document.getElementById('quiz-type').value;
 
@@ -2825,18 +2829,20 @@
 
       if (!valid) return;
 
-      if (editingIndex > -1) {
-        quizzes[editingIndex] = { ...quizzes[editingIndex], title, type, questions };
-        persistQuizzes();
-        toast('✓ Quiz updated!');
-        showView('teacher-dashboard');
-      } else {
-        const code = generateCode();
-        quizzes.push({ title, type, code, questions, date: new Date().toLocaleDateString() });
-        persistQuizzes();
-        document.getElementById('generated-code').textContent = code;
-        document.getElementById('code-modal').classList.remove('hidden');
-        lucide.createIcons();
+      try {
+        if (editingIndex > -1) {
+          const quiz = quizzes[editingIndex];
+          await api('PUT', `/api/quizzes/${encodeURIComponent(quiz.code)}`, { title, type, questions });
+          toast('✓ Quiz updated!');
+          showView('teacher-dashboard');
+        } else {
+          const created = await api('POST', '/api/quizzes', { title, type, questions });
+          document.getElementById('generated-code').textContent = created.code;
+          document.getElementById('code-modal').classList.remove('hidden');
+          lucide.createIcons();
+        }
+      } catch (e) {
+        toast('Unable to save the quiz right now.');
       }
 
       editingIndex = -1;
@@ -2873,12 +2879,15 @@
       showView('create-quiz-view');
     }
 
-    function deleteQuiz(i) {
+    async function deleteQuiz(i) {
       if (!confirm('Delete this quiz? This cannot be undone.')) return;
-      quizzes.splice(i, 1);
-      persistQuizzes();
-      renderQuizzes();
-      toast('🗑 Quiz deleted.');
+      try {
+        await api('DELETE', `/api/quizzes/${encodeURIComponent(quizzes[i].code)}`);
+        await loadQuizzesFromServer();
+        toast('🗑 Quiz deleted.');
+      } catch (e) {
+        toast('Unable to delete the quiz right now.');
+      }
     }
 
     function copyCode() {
@@ -2952,7 +2961,7 @@
     let quizSecondsLeft = 0;
 
     /* Join quiz by code */
-    function joinQuiz() {
+    async function joinQuiz() {
       const nameEl = document.getElementById('student-fullname');
       const yearEl = document.getElementById('student-year');
       const blockEl = document.getElementById('student-block');
@@ -2992,8 +3001,10 @@
         return;
       }
 
-      const quiz = quizzes.find(q => q.code === code);
-      if (!quiz) {
+      let quiz;
+      try {
+        quiz = await api('GET', `/api/quizzes/${encodeURIComponent(code)}`);
+      } catch (e) {
         codeEl.classList.add('error');
         errEl.textContent = '⚠ Invalid code. Please check and try again.';
         errEl.classList.add('show');
@@ -3402,20 +3413,13 @@
         });
         rank = res.rank;
       } catch (e) {
-        rank = pmLocalRank();
+        rank = null;
       }
 
       const rankText = rank === 1 ? '🥇 You are #1!' : `You placed #${rank} on the leaderboard!`;
       document.getElementById('pm-res-sub').textContent =
         `You scored ${pmScore} pts with a best streak of ${pmBest}. ${rank ? rankText : ''}`;
       document.getElementById('pm-res-rank').textContent = rank ? `#${rank}` : '--';
-    }
-
-    function pmLocalRank() {
-      const stored = JSON.parse(localStorage.getItem('pm_scores') || '[]');
-      const scores = [...stored, { name: pmUser, score: pmScore }];
-      scores.sort((a, b) => b.score - a.score);
-      return scores.findIndex((entry) => entry.name === pmUser && entry.score === pmScore) + 1 || null;
     }
 
     function pmResetQuiz() {
@@ -3441,7 +3445,8 @@
       try {
         pmScores = await pmApi('GET', '/api/leaderboard');
       } catch (e) {
-        pmScores = JSON.parse(localStorage.getItem('pm_scores') || '[]');
+        pmScores = [];
+        toast('Could not load leaderboard.');
       }
 
       pmScores.sort((a, b) => b.score - a.score);
@@ -3565,7 +3570,6 @@
        INIT
     ════════════════════════════════════════ */
     lucide.createIcons();
-    renderQuizzes(); // pre-render for dashboard
   </script>
 </body>
 
