@@ -2322,6 +2322,21 @@
       </div>
     </div>
 
+      <!-- ══════════════════════════════
+         CONFIRMATION MODAL
+    ══════════════════════════════ -->
+      <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <div class="modal-success-icon"><i data-lucide="help-circle"></i></div>
+          <h2 id="confirm-modal-title">Confirm</h2>
+          <p id="confirm-modal-text">Are you sure?</p>
+          <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+            <button id="confirm-cancel-btn" class="modal-close-btn" style="background:#fff;color:var(--dark);border:2px solid var(--border);">Cancel</button>
+            <button id="confirm-ok-btn" class="modal-close-btn" style="background:var(--dark);color:#fff;">Submit Quiz</button>
+          </div>
+        </div>
+      </div>
+
     <!-- ══════════════════════════════
        STUDENT – CODE ENTRY
   ══════════════════════════════ -->
@@ -2603,6 +2618,35 @@
       el.textContent = msg;
       el.classList.add('show');
       setTimeout(() => el.classList.remove('show'), duration);
+    }
+
+    /** Show styled confirmation modal; returns a Promise<boolean> */
+    function showConfirm(message) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const text = document.getElementById('confirm-modal-text');
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+        if (!modal || !text || !okBtn || !cancelBtn) {
+          // fallback
+          return resolve(window.confirm(message));
+        }
+        text.textContent = message;
+        modal.classList.remove('hidden');
+        if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+
+        function cleanup() {
+          modal.classList.add('hidden');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+        }
+
+        function onOk() { cleanup(); resolve(true); }
+        function onCancel() { cleanup(); resolve(false); }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+      });
     }
 
     async function isOnline() {
@@ -3073,13 +3117,15 @@
       }
     }
 
-    function submitQuiz() {
+    async function submitQuiz() {
       // Check for unanswered questions
       const unanswered = studentAnswers.filter(a => !a || !a.trim()).length;
       if (unanswered > 0) {
-        if (!confirm(`You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Submit anyway?`)) return;
+        const ok = await showConfirm(`You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Submit anyway?`);
+        if (!ok) return;
       } else {
-        if (!confirm('Submit your quiz?')) return;
+        const ok = await showConfirm('Submit your quiz?');
+        if (!ok) return;
       }
       clearInterval(quizTimerInterval);
       showResults();

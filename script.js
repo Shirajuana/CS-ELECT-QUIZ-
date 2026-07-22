@@ -1,5 +1,5 @@
 const state = {
-  quizzes: JSON.parse(localStorage.getItem('quizzes') || '[]'),
+  quizzes: [],
   editingIndex: -1,
   currentQuiz: null,
   shuffledQuestions: [],
@@ -128,6 +128,42 @@ function toast(msg, duration = 2000) {
   setTimeout(() => el.classList.remove('show'), duration);
 }
 
+/** Show a styled in-page confirmation dialog. Returns a Promise<boolean> */
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const text = document.getElementById('confirm-modal-text');
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    if (!modal || !text || !okBtn || !cancelBtn) {
+      // Fallback to native confirm if modal is unavailable
+      return resolve(window.confirm(message));
+    }
+    text.textContent = message;
+    modal.classList.remove('hidden');
+    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+
+    function cleanup() {
+      modal.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+
+    function onOk() {
+      cleanup();
+      resolve(true);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
 function showView(viewId) {
   document.querySelectorAll('.view').forEach((view) => view.classList.add('hidden'));
   const target = document.getElementById(viewId);
@@ -152,8 +188,16 @@ function showView(viewId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function persistQuizzes() {
-  localStorage.setItem('quizzes', JSON.stringify(state.quizzes));
+async function loadQuizzesFromServer() {
+  try {
+    const response = await fetch('/api/quizzes');
+    if (!response.ok) throw new Error('Unable to load quizzes');
+    state.quizzes = await response.json();
+    renderQuizzes();
+  } catch (error) {
+    console.error(error);
+    toast('Unable to load quizzes from the server.');
+  }
 }
 
 function generateCode() {
@@ -299,7 +343,7 @@ function renumberQuestions() {
   });
 }
 
-function saveQuiz() {
+async function saveQuiz() {
   const title = document.getElementById('quiz-title').value.trim();
   const type = document.getElementById('quiz-type').value;
   if (!title) {
@@ -331,19 +375,39 @@ function saveQuiz() {
     questions.push({ question: qText, answer: ans, choices });
   });
   if (!valid) return;
-  if (state.editingIndex > -1) {
-    state.quizzes[state.editingIndex] = { ...state.quizzes[state.editingIndex], title, type, questions };
-    persistQuizzes();
-    toast('✓ Quiz updated!');
-    showView('teacher-dashboard');
-  } else {
-    const code = generateCode();
-    state.quizzes.push({ title, type, code, questions, date: new Date().toLocaleDateString() });
-    persistQuizzes();
-    selectors.generatedCode.textContent = code;
-    selectors.codeModal.classList.remove('hidden');
-    lucide.createIcons();
+
+  try {
+    if (state.editingIndex > -1) {
+      const existingQuiz = state.quizzes[state.editingIndex];
+      const response = await fetch(`/api/quizzes/${encodeURIComponent(existingQuiz.code)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, type, questions })
+      });
+      if (!response.ok) throw new Error('Unable to update quiz');
+      const updatedQuiz = await response.json();
+      state.quizzes[state.editingIndex] = updatedQuiz;
+      toast('✓ Quiz updated!');
+      showView('teacher-dashboard');
+    } else {
+      const response = await fetch('/api/quizzes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, type, questions })
+      });
+      if (!response.ok) throw new Error('Unable to save quiz');
+      const createdQuiz = await response.json();
+      state.quizzes.unshift(createdQuiz);
+      selectors.generatedCode.textContent = createdQuiz.code;
+      selectors.codeModal.classList.remove('hidden');
+      lucide.createIcons();
+      toast('✓ Quiz saved to the server!');
+    }
+  } catch (error) {
+    console.error(error);
+    toast('Unable to save the quiz right now.');
   }
+
   state.editingIndex = -1;
 }
 
@@ -375,12 +439,19 @@ function editQuiz(index) {
   showView('create-quiz-view');
 }
 
-function deleteQuiz(index) {
-  if (!confirm('Delete this quiz? This cannot be undone.')) return;
-  state.quizzes.splice(index, 1);
-  persistQuizzes();
-  renderQuizzes();
-  toast('🗑 Quiz deleted.');
+async function deleteQuiz(index) {
+  const quiz = state.quizzes[index];
+  if (!quiz || !confirm('Delete this quiz? This cannot be undone.')) return;
+  try {
+    const response = await fetch(`/api/quizzes/${encodeURIComponent(quiz.code)}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Unable to delete quiz');
+    state.quizzes.splice(index, 1);
+    renderQuizzes();
+    toast('🗑 Quiz deleted.');
+  } catch (error) {
+    console.error(error);
+    toast('Unable to delete the quiz right now.');
+  }
 }
 
 function copyCode() {
@@ -438,7 +509,7 @@ function renderQuizzes() {
   lucide.createIcons();
 }
 
-function joinQuiz() {
+async function joinQuiz() {
   const code = selectors.studentQuizCode.value.trim().toUpperCase();
   selectors.studentQuizCode.classList.remove('error');
   selectors.codeErrorMsg.classList.remove('show');
@@ -448,23 +519,25 @@ function joinQuiz() {
     selectors.codeErrorMsg.classList.add('show');
     return;
   }
-  const quiz = state.quizzes.find((item) => item.code === code);
-  if (!quiz) {
+  try {
+    const response = await fetch(`/api/quizzes/${encodeURIComponent(code)}`);
+    if (!response.ok) throw new Error('Quiz not found');
+    const quiz = await response.json();
+    state.currentQuiz = quiz;
+    state.currentQuestionIndex = 0;
+    state.shuffledQuestions = shuffle(quiz.questions);
+    state.studentAnswers = new Array(state.shuffledQuestions.length).fill(null);
+    selectors.studentQuizCode.value = '';
+    selectors.codeErrorMsg.classList.remove('show');
+    showView('quiz-view');
+    renderQuizHeader();
+    renderQuizQuestion();
+    startQuizTimer(quiz.questions.length * 60);
+  } catch (error) {
     selectors.studentQuizCode.classList.add('error');
     selectors.codeErrorMsg.textContent = '⚠ Invalid code. Please check and try again.';
     selectors.codeErrorMsg.classList.add('show');
-    return;
   }
-  state.currentQuiz = quiz;
-  state.currentQuestionIndex = 0;
-  state.shuffledQuestions = shuffle(quiz.questions);
-  state.studentAnswers = new Array(state.shuffledQuestions.length).fill(null);
-  selectors.studentQuizCode.value = '';
-  selectors.codeErrorMsg.classList.remove('show');
-  showView('quiz-view');
-  renderQuizHeader();
-  renderQuizQuestion();
-  startQuizTimer(quiz.questions.length * 60);
 }
 
 function confirmExitQuiz() {
@@ -551,12 +624,14 @@ function updateTimerDisplay() {
   if (state.quizSecondsLeft < 20) badge.classList.add('danger');
 }
 
-function submitQuiz() {
+async function submitQuiz() {
   const unanswered = state.studentAnswers.filter((answer) => !answer || !String(answer).trim()).length;
   if (unanswered > 0) {
-    if (!confirm(`You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Submit anyway?`)) return;
-  } else if (!confirm('Submit your quiz?')) {
-    return;
+    const ok = await showConfirm(`You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Submit anyway?`);
+    if (!ok) return;
+  } else {
+    const ok = await showConfirm('Submit your quiz?');
+    if (!ok) return;
   }
   clearInterval(state.quizTimerInterval);
   showResults();
@@ -982,11 +1057,12 @@ function setupPracticeSession() {
   document.getElementById('pm-q-count-label').textContent = `${state.PM_Q.length} total`;
 }
 
-function init() {
+async function init() {
+  localStorage.removeItem('quizzes');
   setupPracticeSession();
   initializeEvents();
   lucide.createIcons();
-  renderQuizzes();
+  await loadQuizzesFromServer();
 }
 
 window.addEventListener('DOMContentLoaded', init);
